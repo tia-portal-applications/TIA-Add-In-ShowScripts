@@ -1,4 +1,4 @@
-# TIA Addin ShowScripts
+# TIA Add-In ShowScripts
 
 Export all JavaScripts of all screens to a file per screen in your project UserFiles' directory and get an additional Excel overview over all screens.
 
