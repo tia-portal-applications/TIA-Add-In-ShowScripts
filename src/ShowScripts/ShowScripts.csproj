@@ -33,10 +33,10 @@
   <ItemGroup>
     <Reference Include="Microsoft.VisualBasic" />
     <Reference Include="Siemens.Engineering.AddIn">
-      <HintPath>C:\Program Files\Siemens\Automation\Portal V17\PublicAPI\V17.AddIn\Siemens.Engineering.AddIn.dll</HintPath>
+      <HintPath>C:\Program Files\Siemens\Automation\Portal V18\PublicAPI\V18.AddIn\Siemens.Engineering.AddIn.dll</HintPath>
     </Reference>
     <Reference Include="Siemens.Engineering.Hmi">
-      <HintPath>C:\Program Files\Siemens\Automation\Portal V17\PublicAPI\V17\Siemens.Engineering.Hmi.dll</HintPath>
+      <HintPath>C:\Program Files\Siemens\Automation\Portal V18\PublicAPI\V18\Siemens.Engineering.Hmi.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -62,8 +62,8 @@
   <PropertyGroup>
     <PostBuildEvent>
 	if $(ConfigurationName) == Debug (
-	"C:\Program Files\Siemens\Automation\Portal V17\PublicAPI\V17.AddIn\Siemens.Engineering.AddIn.Publisher.exe" -f "$(ProjectDir)Debugconfig.xml" -l "$(ProjectDir)PostBuildLog.txt") ELSE (
-	"C:\Program Files\Siemens\Automation\Portal V17\PublicAPI\V17.AddIn\Siemens.Engineering.AddIn.Publisher.exe" -f "$(ProjectDir)Releaseconfig.xml" -l "$(ProjectDir)PostBuildLog.txt")
+	"C:\Program Files\Siemens\Automation\Portal V18\PublicAPI\V18.AddIn\Siemens.Engineering.AddIn.Publisher.exe" -f "$(ProjectDir)Debugconfig.xml" -l "$(ProjectDir)PostBuildLog.txt") ELSE (
+	"C:\Program Files\Siemens\Automation\Portal V18\PublicAPI\V18.AddIn\Siemens.Engineering.AddIn.Publisher.exe" -f "$(ProjectDir)Releaseconfig.xml" -l "$(ProjectDir)PostBuildLog.txt")
 	</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

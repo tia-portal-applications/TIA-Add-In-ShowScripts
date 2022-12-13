@@ -1,7 +1,7 @@
-﻿<PackageConfiguration xmlns="http://www.siemens.com/automation/Openness/AddIn/Publisher/V17">
+﻿<PackageConfiguration xmlns="http://www.siemens.com/automation/Openness/AddIn/Publisher/V18">
   <Author>&lt;Company name - Department&gt;</Author>
-  <AddInVersion>V17</AddInVersion>
-  <Description>This is a TIA Add-In to show all scripts in HmiScreen for TIA Portal V17</Description>
+  <AddInVersion>V18</AddInVersion>
+  <Description>This is a TIA Add-In to show all scripts in HmiScreen for TIA Portal V18</Description>
 
   <Product>
     <Name>TIA Add-In ShowScripts</Name>
