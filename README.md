@@ -1,4 +1,4 @@
-# TIA Add-In ShowScripts
+# TIA Addin ShowScripts
 
 Export all JavaScripts of all screens to a file per screen in your project UserFiles' directory and get an additional Excel overview over all screens.
 
@@ -53,14 +53,16 @@ E.g. "C:\User\siemens\Documents\Automation\ProjextXX\UserFiles\"
 # Limitations 
 The tool is based on TIA Portal Openness and does have limitations.
 - Scheduled tasks and global module content are **not** accessible
-- ScreenItems: "My controls"/CustomWebControls, Symbolic IO field, Touch Area and DynamicSVG are **not** supported
 - Text- und Graphiclists are **not** accessible
 - Only Faceplate-Containers can be checked
 - Library-Handling/MasterCopy-Handling (CopyFrom, CopyTo… whole Unified device only)
-- Folder / Folder structure of Screens and Tag tables
 - ScreenItem Properties: Layer
 - Rename Unified RT (Rename PC RT does work)
 - Create integrated connections (only not integrated connections are supported)
+
+## Limitations with V17
+- Folder / Folder structure of Screens and Tag tables
+- ScreenItems: "My controls"/CustomWebControls, Symbolic IO field, Touch Area and DynamicSVG are **not** supported
 
 
 
