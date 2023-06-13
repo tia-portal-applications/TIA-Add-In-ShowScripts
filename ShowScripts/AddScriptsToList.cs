@@ -273,9 +273,6 @@ namespace ShowScripts
         /// <param name="sets">e.g. Dynamization.Trigger.Type=4, Dynamization.Trigger.Tags='Refresh_tag'</param>
         public static void ExportScripts(IEnumerable<HmiScreen> screens, string fileDirectory, string screenName, string whereCondition = "", string sets = "", bool deepSearch = false)
         {
-            var dynamizationList = new List<string>();
-            var eveList = new List<string>();
-            var screenDynEventList = new List<ScreenDynEvents>();
             var csvStringP = new List<string>();
             string _screenName = "";
             
@@ -356,6 +353,9 @@ namespace ShowScripts
 
             foreach (var screen in screens.Where(s => Regex.Matches(s.Name, _screenName, RegexOptions.IgnoreCase).Count > 0))
             {
+                var dynamizationList = new List<string>();
+                var eveList = new List<string>();
+                var screenDynEventList = new List<ScreenDynEvents>();
                 // inits
                 Console.WriteLine(screen.Name);
                 tagNames = new List<string>();
