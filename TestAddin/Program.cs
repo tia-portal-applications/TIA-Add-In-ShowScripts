@@ -173,8 +173,8 @@ namespace ShowScripts
                     tiaPortalProject = tiaPortal.Projects.First();
                 }
                 
-                var screens = GetScreens(tiaPortalProject.Devices);
-                
+                var screens = GetScreens(tiaPortalProject);
+
                 List<ScreenDynEvents> screenDynEvenList = new List<ScreenDynEvents>();
                 string fileDirectory;
                 if (pathArg != "")
@@ -231,6 +231,31 @@ namespace ShowScripts
             //Console.ReadKey();
         }
 
+        private static IEnumerable<HmiScreen> GetScreens(Project tiaProject)
+        {
+            var screens = GetScreens(tiaProject.Devices);
+            if (screens == null) {
+                screens = GetScreens(tiaProject.DeviceGroups);
+            }
+            return screens;
+        }
+        private static IEnumerable<HmiScreen> GetScreens(DeviceUserGroupComposition groups)
+        {
+            foreach (var group in groups)
+            {
+                var screens = GetScreens(group.Devices);
+                if (screens != null)
+                {
+                    return screens;
+                }
+                screens = GetScreens(group.Groups);
+                if (screens != null)
+                {
+                    return screens;
+                }
+            }
+            return null;
+        }
 
         private static IEnumerable<HmiScreen> GetScreens(DeviceComposition engObj)
         {
