@@ -349,15 +349,19 @@ namespace ShowScripts
                 csvStringP[0] += "," + entry.Key;
             }
 
-            faceplateTypes = new Dictionary<string, int>();           
-
-            foreach (var screen in screens.Where(s => Regex.Matches(s.Name, _screenName, RegexOptions.IgnoreCase).Count > 0))
+            faceplateTypes = new Dictionary<string, int>();
+            
+            var screensToExport = screens.Where(s => Regex.Matches(s.Name, _screenName, RegexOptions.IgnoreCase).Count > 0).ToList();
+            var screenCount = screensToExport.Count;
+            for (var i = 0; i < screenCount; i++)
             {
+                var screen = screensToExport[i];
                 var dynamizationList = new List<string>();
                 var eveList = new List<string>();
                 var screenDynEventList = new List<ScreenDynEvents>();
                 // inits
-                Console.WriteLine(screen.Name);
+                Console.WriteLine();
+                Console.Write("[" + (i + 1) + "/" + screenCount + "]" + screen.Name);
                 tagNames = new List<string>();
                 List<string> _dynamizationList = new List<string>(); 
                 List<string> _eveList = new List<string>();
@@ -399,6 +403,7 @@ namespace ShowScripts
 
                 foreach (var screenitem in screen.ScreenItems)
                 {
+                    Console.Write('.');  // the user wants to see that something happens, so a dot will be printed for every screenitem
                     var screenitemDynsPropEves = GetAllMyAttributesDynPropEves(screenitem, deepSearch, whereCondition.Split(',').ToList(), sets.Split(',').ToList());
                     var screenitemDyns = screenitemDynsPropEves[0];
                     var screenitemPropEves = screenitemDynsPropEves[1];
@@ -430,7 +435,6 @@ namespace ShowScripts
                     {
                         Console.WriteLine("Screenitem Type: " + screenitem.GetType().Name + " is unknown.");
                     }
-
                 }
 
                 var dynList = screenDyns.Concat(screenItemDynamisations).ToList();
@@ -562,19 +566,21 @@ namespace ShowScripts
             {
                 if (itemsDyn.Value.Count == 2 && (obj is HmiScreen || obj is HmiScreenItemBase))
                 {
-                    Console.WriteLine("4");
+                    Console.Write(';');  // the user wants to see that something happens, so a semicolon will be printed for every script
                     tempListDyn.Insert(0, itemsDyn.Value[0]);
                     tempListDyn.Insert(1, "function _" + objectName + "_" + itemsDyn.Key + "_Trigger() {" + itemsDyn.Value[1] + Environment.NewLine + "}");
                 }
 
                 if (itemsDyn.Value.Count == 1 && (obj is HmiScreen || obj is HmiScreenItemBase))
                 {
+                    Console.Write(';');  // the user wants to see that something happens, so a semicolon will be printed for every script
                     tempListDyn.Add(Environment.NewLine + "//eslint-disable-next-line camelcase");
                     tempListDyn.Add("function _" + objectName + "_" + itemsDyn.Key + "_Trigger() {" + itemsDyn.Value[0] + Environment.NewLine + "}");
                 }
 
                 if (itemsDyn.Value.Count == 1 && !(obj is HmiScreen || obj is HmiScreenItemBase))
                 {
+                    Console.Write(';');  // the user wants to see that something happens, so a semicolon will be printed for every script
                     tempListDyn.Add(Environment.NewLine + "//eslint-disable-next-line camelcase");
                     tempListDyn.Add("_" + itemsDyn.Key + "_Trigger() {" + Environment.NewLine + itemsDyn.Value[0] + Environment.NewLine + "}");
                 }
@@ -582,9 +588,9 @@ namespace ShowScripts
 
             foreach (var itemsPropEve in propertyEvents)
             {
+                Console.Write(';');  // the user wants to see that something happens, so a semicolon will be printed for every script
                 if (itemsPropEve.Value.Count == 2 && (obj is HmiScreen || obj is HmiScreenItemBase))
                 {
-                    Console.WriteLine("3");
                     tempListPropEve.Insert(0, itemsPropEve.Value[0]);
                     tempListPropEve.Insert(1, Environment.NewLine + "export function _" + objectName + "_" + itemsPropEve.Key + "_OnPropertyChanged() {" + itemsPropEve.Value[1] + Environment.NewLine + "}");
                 }
@@ -597,7 +603,6 @@ namespace ShowScripts
 
                 if (itemsPropEve.Value.Count == 2 && !(obj is HmiScreen || obj is HmiScreenItemBase))
                 {
-                    Console.WriteLine("2");
                     tempListPropEve.Insert(0, itemsPropEve.Value[0]);
                     tempListPropEve.Insert(1, "_" + itemsPropEve.Key + "_OnPropertyChanged() {" + itemsPropEve.Value[1] + Environment.NewLine + "}");
                 }
@@ -624,6 +629,7 @@ namespace ShowScripts
                         var nodeDynPropEve = GetAllMyAttributesDynPropEves(item, deepSearch, whereConditions, sets);
                         foreach (var dyn in nodeDynPropEve[0])
                         {
+                            Console.Write(';');  // the user wants to see that something happens, so a semicolon will be printed for every script
                             tempListDyn.Add("function _" + objectName + dyn);
                         }
                         int index = 0;
@@ -631,6 +637,7 @@ namespace ShowScripts
                         {
                             if (index != 0)
                             {
+                                Console.Write(';');  // the user wants to see that something happens, so a semicolon will be printed for every script
                                 tempListPropEve.Add(Environment.NewLine + "export function _" + obj.GetAttribute("Name") + propEve);
                             }
                             else
@@ -655,7 +662,7 @@ namespace ShowScripts
             {
                 if (itemsEve.Value.Count == 2)
                 {
-                    Console.WriteLine("1");
+                    Console.Write(';');  // the user wants to see that something happens, so a semicolon will be printed for every script
                     //tempListEve.Add(Environment.NewLine + "//eslint-disable-next-line camelcase");
                     tempListEve.Insert(0, itemsEve.Value[0]);
                     tempListEve.Insert(1, Environment.NewLine + "export async function _" + objectName + "_" + itemsEve.Key + "() {" + itemsEve.Value[1] + Environment.NewLine + "}");
@@ -663,6 +670,7 @@ namespace ShowScripts
 
                 if (itemsEve.Value.Count == 1)
                 {
+                    Console.Write(';');  // the user wants to see that something happens, so a semicolon will be printed for every script
                     tempListEve.Add(Environment.NewLine + "//eslint-disable-next-line camelcase");
                     tempListEve.Add("export async function _" + objectName + "_" + itemsEve.Key + "() {" + itemsEve.Value[0] + Environment.NewLine + "}");
                 }
