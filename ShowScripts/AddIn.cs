@@ -4,18 +4,18 @@ using Siemens.Engineering.HmiUnified;
 using Siemens.Engineering.HmiUnified.UI.Screens;
 using Siemens.Engineering.HW;
 using Siemens.Engineering.HW.Features;
-using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.IO;
 using Siemens.Engineering.HmiUnified.UI.ScreenGroup;
+using System.Diagnostics;
 
 namespace ShowScripts
 {
     public class AddIn : ContextMenuAddIn //Enthält eigentliche Funktionalität des AddIns
     {
         private readonly TiaPortal _tiaPortal;
+        private readonly string exeName = "ShowScripts.OpennessExe.ShowScripts.exe";
 
         public AddIn(TiaPortal tiaPortal) : base("ShowScriptCode") //Definiert den AddIn-Namen
         {
@@ -30,59 +30,84 @@ namespace ShowScripts
 
         private void OnClickExport(MenuSelectionProvider<IEngineeringObject> menuSelectionProvider)
         {
-            //Debugger.Launch();
-            
-            string screenName = ".*";
-            List<ScreenDynEvents> screenDynEvenList = new List<ScreenDynEvents>();
-            string fileDirectory = _tiaPortal.Projects.FirstOrDefault()?.Path.DirectoryName + "\\UserFiles\\";
-            foreach (IEngineeringObject engObj in menuSelectionProvider.GetSelection())
-            {
-                AddScriptsToList.ExportScripts(GetScreens(engObj as HardwareObject), fileDirectory, screenName);
-            }
+#if DEBUG
+            Debugger.Launch();
+#endif
+            string args = "export";
+            args = StartApplication(menuSelectionProvider, args);
         }
+
         private void OnClickImport(MenuSelectionProvider<IEngineeringObject> menuSelectionProvider)
         {
-            //Debugger.Launch();
-            
-            // string screenName = ".*";
-            List<ScreenDynEvents> screenDynEvenList = new List<ScreenDynEvents>();
+#if DEBUG
+            Debugger.Launch();
+#endif
+            string args = "import";
+            args = StartApplication(menuSelectionProvider, args);
+        }
+        private string StartApplication(MenuSelectionProvider<IEngineeringObject> menuSelectionProvider, string args)
+        {
             string fileDirectory = _tiaPortal.Projects.FirstOrDefault()?.Path.DirectoryName + "\\UserFiles\\";
-            foreach (IEngineeringObject engObj in menuSelectionProvider.GetSelection())
+            var currentProcess = _tiaPortal.GetCurrentProcess();
+            string exePath = WriteApplicationToTempFolder(exeName);
+            args += " -t \"";
+            List<string> deviceNames = new List<string>();
+            foreach (Device device in menuSelectionProvider.GetSelection<Device>())
             {
-                AddScriptsToList.ImportScripts(GetScreens(engObj as HardwareObject), fileDirectory);
+                foreach (DeviceItem deviceItem in device.DeviceItems)
+                {
+                    SoftwareContainer softwareContainer = deviceItem.GetService<SoftwareContainer>();
+                    if (softwareContainer != null && softwareContainer.Software is HmiSoftware) // HmiSoftware means Unified
+                    {
+                        deviceNames.Add(device.Name);
+                    }
+                }
             }
+            args += string.Join(",", deviceNames) + "\"";
+            args += " -P " + "\"" + currentProcess.Id + "\"";
+            args += " -A " + "\"" + currentProcess.Path.ToString() + "\"";
+
+            var process = Siemens.Engineering.AddIn.Utilities.Process.Start(exePath, args);
+
+            return args;
         }
 
-        private static IEnumerable<HmiScreen> GetScreens(HardwareObject engObj)
-        {
-            foreach (DeviceItem deviceItem in engObj.DeviceItems)
-            {
-                SoftwareContainer softwareContainer = deviceItem.GetService<SoftwareContainer>();
-                if (softwareContainer != null)
-                {
-                    var sw = softwareContainer.Software as HmiSoftware;
-                    var allScreens = sw.Screens.ToList();
-                    allScreens.AddRange(ParseGroups(sw.ScreenGroups));
-                    return allScreens;
-                }
-            }
-            return null;
-        }
 
-        private static IEnumerable<HmiScreen> ParseGroups(HmiScreenGroupComposition parentGroups)
+        private string WriteApplicationToTempFolder(string exeResource, string[] referenceResources = null)
         {
-            foreach (var group in parentGroups)
+            string tempDirectory = GetTemporaryDirectory();
+
+            File.WriteAllBytes(Path.Combine(tempDirectory, GetFileNameFromResource(exeResource)), GetResourceStream(exeResource));
+
+            if (referenceResources != null)
             {
-                foreach (var screen in group.Screens)
+                foreach (string resource in referenceResources)
                 {
-                    yield return screen;
-                }
-                foreach (var screen in ParseGroups(group.Groups))
-                {
-                    yield return screen;
+                    File.WriteAllBytes(Path.Combine(tempDirectory, GetFileNameFromResource(resource)), GetResourceStream(resource));
                 }
             }
+
+            return Path.Combine(tempDirectory, GetFileNameFromResource(exeResource));
+        }        
+        private byte[] GetResourceStream(string name)
+        {
+            BinaryReader streamReader = new BinaryReader(this.GetType().Assembly.GetManifestResourceStream(name));
+
+            return streamReader.ReadBytes((int)streamReader.BaseStream.Length);
         }
+        private string GetTemporaryDirectory()
+        {
+            string tempDirectory = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+            Directory.CreateDirectory(tempDirectory);
+            return tempDirectory;
+        }
+        private string GetFileNameFromResource(string resourceName)
+        {
+            string resourceStart = "ShowScripts.OpennessExe.";
+
+            return resourceName.Substring(resourceStart.Length);
+        }
+        
         private MenuStatus DisplayStatus(MenuSelectionProvider<IEngineeringObject> menuSelectionProvider)
         {
             return MenuStatus.Enabled;

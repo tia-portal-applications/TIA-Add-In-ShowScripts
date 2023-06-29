@@ -31,9 +31,11 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Microsoft.VisualBasic" />
     <Reference Include="Siemens.Engineering.AddIn">
       <HintPath>C:\Program Files\Siemens\Automation\Portal V18\PublicAPI\V18.AddIn\Siemens.Engineering.AddIn.dll</HintPath>
+    </Reference>
+    <Reference Include="Siemens.Engineering.AddIn.Utilities">
+      <HintPath>C:\Program Files\Siemens\Automation\Portal V18\PublicAPI\V18.AddIn\Siemens.Engineering.AddIn.Utilities.dll</HintPath>
     </Reference>
     <Reference Include="Siemens.Engineering.Hmi">
       <HintPath>C:\Program Files\Siemens\Automation\Portal V18\PublicAPI\V18\Siemens.Engineering.Hmi.dll</HintPath>
@@ -51,12 +53,14 @@
   <ItemGroup>
     <Compile Include="AddIn.cs" />
     <Compile Include="AddInProvider.cs" />
-    <Compile Include="AddScriptsToList.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Debugconfig.xml" />
     <Content Include="Releaseconfig.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="OpennessExe\ShowScripts.exe" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
