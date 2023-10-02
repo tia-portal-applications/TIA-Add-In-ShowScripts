@@ -25,6 +25,7 @@ namespace ShowScripts
         protected override void BuildContextMenuItems(ContextMenuAddInRoot addInRootSubmenu)
         {
             addInRootSubmenu.Items.AddActionItem<IEngineeringObject>("Export all scripts of HMI", OnClickExport, DisplayStatus);
+            addInRootSubmenu.Items.AddActionItem<IEngineeringObject>("Export all scripts of HMI overwrite", OnClickExportOverwrite, DisplayStatus);
             addInRootSubmenu.Items.AddActionItem<IEngineeringObject>("Import all scripts to HMI", OnClickImport, DisplayStatus);
         }
 
@@ -34,6 +35,14 @@ namespace ShowScripts
             Debugger.Launch();
 #endif
             string args = "export";
+            args = StartApplication(menuSelectionProvider, args);
+        }
+        private void OnClickExportOverwrite(MenuSelectionProvider<IEngineeringObject> menuSelectionProvider)
+        {
+#if DEBUG
+            Debugger.Launch();
+#endif
+            string args = "export --overwrite";
             args = StartApplication(menuSelectionProvider, args);
         }
 

@@ -270,8 +270,10 @@ namespace ShowScripts
         /// <param name="screenName">Case ignored, e.g. *, Screen_*</param>
         /// <param name="whereCondition">e.g. Dynamization.Trigger.Type=250</param>
         /// <param name="sets">e.g. Dynamization.Trigger.Type=4, Dynamization.Trigger.Tags='Refresh_tag'</param>
-        public void ExportScripts(IEnumerable<HmiScreen> screens, string fileDirectory, string screenName, string deviceName, string whereCondition = "", string sets = "", bool deepSearch = false)
+        public void ExportScripts(IEnumerable<HmiScreen> screens, string fileDirectory, string screenName, string deviceName, bool overwrite, bool deepSearch = false)
         {
+            string whereCondition = "";
+            string sets = "";
             var csvStringP = new List<string>();
             string _screenName = "";
             
@@ -365,9 +367,21 @@ namespace ShowScripts
             
             var screensToExport = screens.Where(s => Regex.Matches(s.Name, _screenName, RegexOptions.IgnoreCase).Count > 0).ToList();
             var screenCount = screensToExport.Count;
+            // if TIA Portal crashes, you can find out easily, which screen made the crash by checking which files were created and which is the next screen within this list.
+            using (StreamWriter sw = new StreamWriter(fileDirectory + "ScreenNames.txt"))
+            {
+                foreach (var screen in screensToExport)
+                {
+                    sw.WriteLine(screen.Name);
+                }
+            }
             for (var i = 0; i < screenCount; i++)
             {
                 var screen = screensToExport[i];
+                if (!overwrite && File.Exists(fileDirectory + screen.Name + "_Dynamizations.js") && File.Exists(fileDirectory + screen.Name + "_Events.js"))
+                {
+                    continue;
+                }
                 var dynamizationList = new List<string>();
                 var eveList = new List<string>();
                 var screenDynEventList = new List<ScreenDynEvents>();
