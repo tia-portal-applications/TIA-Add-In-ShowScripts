@@ -998,9 +998,9 @@ namespace ShowScripts
             }
             else // e.g. EventHandlers & PropertyEventHandlers
             {
+                int i = 1;
                 foreach (IEngineeringObject eveHand in obj.GetComposition(compositionName) as IEngineeringComposition)
                 {
-                    int i = 1;
                     var listEve = new List<string>();
                     IEngineeringObject script = eveHand.GetAttribute("Script") as IEngineeringObject;
                     //script.SetAttribute("ScriptCode", "\r\n\nEureka");
