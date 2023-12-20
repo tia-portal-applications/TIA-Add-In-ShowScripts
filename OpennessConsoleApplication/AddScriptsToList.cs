@@ -491,14 +491,17 @@ namespace ShowScripts
                     if (screenitem is HmiTextBox)
                     {
                         var tb = screenitem as HmiTextBox;
+                        bool textboxWithoutText = true;
                         foreach (var item in tb.Text.Items)  // check if there is any character inside any text of any language
                         {
                             if (!string.IsNullOrWhiteSpace(item.Text.Replace("<body><p>", "").Replace("</p></body>", "")))
                             {
-                                countTextboxesWithoutText.Add(screenitem.Name);
+                                textboxWithoutText = false;
                                 break;
                             }
                         }
+                        if (textboxWithoutText)
+                            countTextboxesWithoutText.Add(screenitem.Name);
                     }
                 }
 
@@ -578,14 +581,14 @@ namespace ShowScripts
                 {
                     sw.Write(string.Join(Environment.NewLine, eveList));
                 }
-                using (StreamWriter sw = File.AppendText(fileDirectory + "TextboxesWithoutText.csv"))
+                using (StreamWriter sw = new StreamWriter(fileDirectory + "TextboxesWithoutText.csv", true))
                 {
                     foreach (var item in countTextboxesWithoutText)
                     {
                         sw.WriteLine(screen.Name + delimiter + item);
                     }
                 }
-                using (StreamWriter sw = File.AppendText(fileDirectory + "ScreenItemsOutOfRange.csv"))
+                using (StreamWriter sw = new StreamWriter(fileDirectory + "ScreenItemsOutOfRange.csv", true))
                 {
                     foreach (var item in screenItemsOutOfRange)
                     {
