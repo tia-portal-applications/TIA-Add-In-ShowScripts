@@ -7,15 +7,14 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
-using System.Reflection;
 using System.Text.RegularExpressions;
 using Siemens.Engineering.HmiUnified.UI.Controls;
 using System.Globalization;
-using System.Diagnostics;
 using Siemens.Engineering.HmiUnified.UI.Dynamization;
 using Siemens.Engineering.HmiUnified.UI.Events;
 using System.IO;
 using System.Windows.Forms;
+using Siemens.Engineering.HmiUnified.UI.Widgets;
 
 namespace ShowScripts
 {
@@ -31,6 +30,7 @@ namespace ShowScripts
         string globalDefinitionAreaScriptCodeEvents;
         List<string> childScreens;
         int check = 0;
+        char delimiter = ';';
 
         public void ImportScripts(IEnumerable<HmiScreen> screens, string fileDirectory)
         {
@@ -315,7 +315,7 @@ namespace ShowScripts
                 screenName = _screenName;
             }
 
-            csvStringP.Add("Screen name,Item count,Cyclic (<=500ms),Cyclic (>500ms),OtherCycles,Disabled,Tags-Dyn-Scripts,Tags-Dyn, Total Number of Tags,Resource list,Events,Child screens");
+            csvStringP.Add(string.Format("Screen name{0}Item count{0}Cycles{0}Disabled{0}Tags-Dyn-Scripts{0}Tags-Dyn{0} Total Number of Tags{0}Resource list{0}Events{0}Child screens{0}ScreenItemsOutOfRange{0}TextBoxesWithoutText{0}UseTagSet", delimiter));
 
             countScreenItems = new Dictionary<string, int>()
                 {
@@ -360,7 +360,7 @@ namespace ShowScripts
 
             foreach (var entry in countScreenItems)
             {
-                csvStringP[0] += "," + entry.Key;
+                csvStringP[0] += delimiter + entry.Key;
             }
 
             faceplateTypes = new Dictionary<string, int>();
@@ -378,7 +378,8 @@ namespace ShowScripts
             for (var i = 0; i < screenCount; i++)
             {
                 var screen = screensToExport[i];
-                if (!overwrite && File.Exists(fileDirectory + screen.Name + "_Dynamizations.js") && File.Exists(fileDirectory + screen.Name + "_Events.js"))
+                string screenNamePath = string.Join("_", screen.Name.Split(Path.GetInvalidFileNameChars())).Replace(delimiter, '_');
+                if (!overwrite && File.Exists(fileDirectory + screenNamePath + "_Dynamizations.js") && File.Exists(fileDirectory + screenNamePath + "_Events.js"))
                 {
                     continue;
                 }
@@ -410,6 +411,9 @@ namespace ShowScripts
                 globalDefinitionAreaScriptCodeDyns = "";
                 globalDefinitionAreaScriptCodeEvents = "";
                 childScreens = new List<string>();
+                int screenItemsOutOfRange = 0;
+                int countTextboxesWithoutText = 0;
+                int amountTagSet = 0;
 
                 foreach (var key in countScreenItems.Keys.ToList())
                 {
@@ -422,18 +426,20 @@ namespace ShowScripts
                 }
 
                 // calculations
-                var screenDynsPropEves = GetAllMyAttributesDynPropEves(screen, deepSearch, whereCondition.Split(',').ToList(), sets.Split(',').ToList());
+                var screenDynsPropEves = GetAllMyAttributesDynPropEves(screen, deepSearch, whereCondition.Split(',').ToList(), sets.Split(',').ToList(), ref amountTagSet);
                 var screenDyns = screenDynsPropEves[0];
                 var screenPropEves = screenDynsPropEves[1];
-                var screenEves = GetAllMyAttributesEve(screen, whereCondition.Split(',').ToList(), sets.Split(',').ToList());
+                var screenEves = GetAllMyAttributesEve(screen, whereCondition.Split(',').ToList(), sets.Split(',').ToList(), ref amountTagSet);
+                uint screenWidth = screen.Width;
+                uint screenHeight = screen.Height;
 
                 foreach (var screenitem in screen.ScreenItems)
                 {
                     Console.Write('.');  // the user wants to see that something happens, so a dot will be printed for every screenitem
-                    var screenitemDynsPropEves = GetAllMyAttributesDynPropEves(screenitem, deepSearch, whereCondition.Split(',').ToList(), sets.Split(',').ToList());
+                    var screenitemDynsPropEves = GetAllMyAttributesDynPropEves(screenitem, deepSearch, whereCondition.Split(',').ToList(), sets.Split(',').ToList(), ref amountTagSet);
                     var screenitemDyns = screenitemDynsPropEves[0];
                     var screenitemPropEves = screenitemDynsPropEves[1];
-                    var screenitemEves = GetAllMyAttributesEve(screenitem, whereCondition.Split(',').ToList(), sets.Split(',').ToList());
+                    var screenitemEves = GetAllMyAttributesEve(screenitem, whereCondition.Split(',').ToList(), sets.Split(',').ToList(), ref amountTagSet);
 
                     screenItemEvents = screenItemEvents.Concat(screenitemEves).ToList().Concat(screenitemPropEves).ToList();
 
@@ -449,7 +455,7 @@ namespace ShowScripts
                         if (!faceplateTypes.ContainsKey(faceplate.ContainedType))
                         {
                             faceplateTypes.Add(faceplate.ContainedType, 0);
-                            csvStringP[0] += "," + faceplate.ContainedType;
+                            csvStringP[0] += delimiter + faceplate.ContainedType;
                         }
                         faceplateTypes[faceplate.ContainedType]++;
                     }
@@ -460,6 +466,30 @@ namespace ShowScripts
                     else
                     {
                         Console.WriteLine("Screenitem Type: " + screenitem.GetType().Name + " is unknown.");
+                    }
+                    if (!(screenitem is Siemens.Engineering.HmiUnified.UI.Shapes.HmiCentricShapeBase))
+                    {
+                        var dimensions = screenitem.GetAttributes(new List<string>() { "Left", "Top", "Width", "Height" });
+                        int left = (int)dimensions[0];
+                        int top = (int)dimensions[1];
+                        uint width = (uint)dimensions[2];
+                        uint height = (uint)dimensions[3];
+                        if (left + width < 0 || top + height < 0 || left > screenWidth || top > screenHeight)
+                        {
+                            screenItemsOutOfRange++;
+                        }
+                    }
+                    if (screenitem is HmiTextBox)
+                    {
+                        var tb = screenitem as HmiTextBox;
+                        foreach (var item in tb.Text.Items)  // check if there is any character inside any text of any language
+                        {
+                            if (!string.IsNullOrWhiteSpace(item.Text.Replace("<body><p>", "").Replace("</p></body>", "")))
+                            {
+                                countTextboxesWithoutText++;
+                                break;
+                            }
+                        }
                     }
                 }
 
@@ -515,41 +545,42 @@ namespace ShowScripts
 
                 }
                 dynamizationList.Insert(startIndex, "// **********    Overview: Trigger counts of dynamizations of screen: " + screen.Name + "    **********");
-                csvStringP.Add(screen.Name + "," + screen.ScreenItems.Count + "," + (countDynTriggers["T100ms"] + countDynTriggers["T250ms"] + countDynTriggers["T500ms"]) + "," +
-                    (countDynTriggers["T1s"] + countDynTriggers["T2s"] + countDynTriggers["T5s"] + countDynTriggers["T10s"]) + "," + countDynTriggers["OtherCycles"] + "," +
-                    countDynTriggers["Disabled"] + "," + countDynTriggers["Tags"] + "," + countDynTriggers["TagDynamizations"] + "," + tagNames.Count() + "," + countDynTriggers["ResourceLists"] + "," +
-                    eventListCount + "," + string.Join("&", childScreens) + ",");
+                csvStringP.Add(string.Format(screen.Name + "{0}" + screen.ScreenItems.Count + "{0}" + (countDynTriggers["T100ms"] + countDynTriggers["T250ms"] + countDynTriggers["T500ms"] +
+                    countDynTriggers["T1s"] + countDynTriggers["T2s"] + countDynTriggers["T5s"] + countDynTriggers["T10s"] + countDynTriggers["OtherCycles"]) + "{0}" +
+                    countDynTriggers["Disabled"] + "{0}" + countDynTriggers["Tags"] + "{0}" + countDynTriggers["TagDynamizations"] + "{0}" + tagNames.Count() + "{0}" + countDynTriggers["ResourceLists"] + "{0}" +
+                    eventListCount + "{0}" + string.Join("&", childScreens) + "{0}" + countTextboxesWithoutText + "{0}" + screenItemsOutOfRange + "{0}" + amountTagSet, delimiter));
 
                 foreach (var entry in countScreenItems)
                 {
-                    csvStringP[csvStringP.Count - 1] += entry.Value + ",";
+                    csvStringP[csvStringP.Count - 1] += delimiter + entry.Value;
                 }
 
                 foreach (var entry in faceplateTypes)
                 {
-                    csvStringP[csvStringP.Count - 1] += entry.Value + ",";
+                    csvStringP[csvStringP.Count - 1] += delimiter + entry.Value;
                 }
+                csvStringP[csvStringP.Count - 1] += delimiter;
 
-                using (StreamWriter sw = new StreamWriter(fileDirectory + screen.Name + "_Dynamizations.js"))
+                using (StreamWriter sw = new StreamWriter(fileDirectory + screenNamePath + "_Dynamizations.js"))
                 {
                     sw.Write(string.Join(Environment.NewLine, dynList));
                 }
-                using (StreamWriter sw = new StreamWriter(fileDirectory + screen.Name + "_Events.js"))
+                using (StreamWriter sw = new StreamWriter(fileDirectory + screenNamePath + "_Events.js"))
                 {
                     sw.Write(string.Join(Environment.NewLine, eveList));
                 }
             }
 
             //fill empty space with 0 
-            int longestEntry = csvStringP[0].Count(x => x == ',');
+            int longestEntry = csvStringP[0].Count(x => x == delimiter);
             int counterFaceplateTypes = 0;
             foreach (var entry in csvStringP.ToList())
             {
                 if (counterFaceplateTypes != 0)
                 {
-                    for (int i = entry.Count(x => x == ','); i <= longestEntry; i++)
+                    for (int i = entry.Count(x => x == delimiter); i <= longestEntry; i++)
                     {
-                        csvStringP[counterFaceplateTypes] += "0,";
+                        csvStringP[counterFaceplateTypes] += "0" + delimiter;
                     }
                 }
                 counterFaceplateTypes++;
@@ -579,7 +610,7 @@ namespace ShowScripts
             }
         }
 
-        public List<List<string>> GetAllMyAttributesDynPropEves(IEngineeringObject obj, bool deepSearch, List<string> whereConditions, List<string> sets)
+        public List<List<string>> GetAllMyAttributesDynPropEves(IEngineeringObject obj, bool deepSearch, List<string> whereConditions, List<string> sets, ref int amountTagSet)
         {
             var tempListDyn = new List<string>();
             var tempListPropEve = new List<string>();
@@ -594,21 +625,27 @@ namespace ShowScripts
                 {
                     Console.Write(';');  // the user wants to see that something happens, so a semicolon will be printed for every script
                     tempListDyn.Insert(0, itemsDyn.Value[0]);
-                    tempListDyn.Insert(1, "function _" + objectName + "_" + itemsDyn.Key + "_Trigger() {" + itemsDyn.Value[1] + Environment.NewLine + "}");
+                    string script = itemsDyn.Value[1];
+                    amountTagSet += GetAmountTagSet(script);
+                    tempListDyn.Insert(1, "function _" + objectName + "_" + itemsDyn.Key + "_Trigger() {" + script + Environment.NewLine + "}");
                 }
 
                 if (itemsDyn.Value.Count == 1 && (obj is HmiScreen || obj is HmiScreenItemBase))
                 {
                     Console.Write(';');  // the user wants to see that something happens, so a semicolon will be printed for every script
                     tempListDyn.Add(Environment.NewLine + "//eslint-disable-next-line camelcase");
-                    tempListDyn.Add("function _" + objectName + "_" + itemsDyn.Key + "_Trigger() {" + itemsDyn.Value[0] + Environment.NewLine + "}");
+                    string script = itemsDyn.Value[0];
+                    amountTagSet += GetAmountTagSet(script);
+                    tempListDyn.Add("function _" + objectName + "_" + itemsDyn.Key + "_Trigger() {" + script + Environment.NewLine + "}");
                 }
 
                 if (itemsDyn.Value.Count == 1 && !(obj is HmiScreen || obj is HmiScreenItemBase))
                 {
                     Console.Write(';');  // the user wants to see that something happens, so a semicolon will be printed for every script
                     tempListDyn.Add(Environment.NewLine + "//eslint-disable-next-line camelcase");
-                    tempListDyn.Add("_" + itemsDyn.Key + "_Trigger() {" + Environment.NewLine + itemsDyn.Value[0] + Environment.NewLine + "}");
+                    string script = itemsDyn.Value[0];
+                    amountTagSet += GetAmountTagSet(script);
+                    tempListDyn.Add("_" + itemsDyn.Key + "_Trigger() {" + Environment.NewLine + script + Environment.NewLine + "}");
                 }
             }
 
@@ -618,25 +655,33 @@ namespace ShowScripts
                 if (itemsPropEve.Value.Count == 2 && (obj is HmiScreen || obj is HmiScreenItemBase))
                 {
                     tempListPropEve.Insert(0, itemsPropEve.Value[0]);
-                    tempListPropEve.Insert(1, Environment.NewLine + "export function _" + objectName + "_" + itemsPropEve.Key + "_OnPropertyChanged() {" + itemsPropEve.Value[1] + Environment.NewLine + "}");
+                    string script = itemsPropEve.Value[1];
+                    amountTagSet += GetAmountTagSet(script);
+                    tempListPropEve.Insert(1, Environment.NewLine + "export function _" + objectName + "_" + itemsPropEve.Key + "_OnPropertyChanged() {" + script + Environment.NewLine + "}");
                 }
 
                 if (itemsPropEve.Value.Count == 1 && (obj is HmiScreen || obj is HmiScreenItemBase))
                 {
                     tempListPropEve.Add(Environment.NewLine + "//eslint-disable-next-line camelcase");
-                    tempListPropEve.Add("export function _" + objectName + "_" + itemsPropEve.Key + "_OnPropertyChanged() {" + itemsPropEve.Value[0] + Environment.NewLine + " }");
+                    string script = itemsPropEve.Value[0];
+                    amountTagSet += GetAmountTagSet(script);
+                    tempListPropEve.Add("export function _" + objectName + "_" + itemsPropEve.Key + "_OnPropertyChanged() {" + script + Environment.NewLine + " }");
                 }
 
                 if (itemsPropEve.Value.Count == 2 && !(obj is HmiScreen || obj is HmiScreenItemBase))
                 {
                     tempListPropEve.Insert(0, itemsPropEve.Value[0]);
-                    tempListPropEve.Insert(1, "_" + itemsPropEve.Key + "_OnPropertyChanged() {" + itemsPropEve.Value[1] + Environment.NewLine + "}");
+                    string script = itemsPropEve.Value[1];
+                    amountTagSet += GetAmountTagSet(script);
+                    tempListPropEve.Insert(1, "_" + itemsPropEve.Key + "_OnPropertyChanged() {" + script + Environment.NewLine + "}");
                 }
 
                 if (itemsPropEve.Value.Count == 1 && !(obj is HmiScreen || obj is HmiScreenItemBase))
                 {
                     tempListPropEve.Add(Environment.NewLine + "//eslint-disable-next-line camelcase");
-                    tempListPropEve.Add("_" + itemsPropEve.Key + "_OnPropertyChanged() {" + itemsPropEve.Value[0] + Environment.NewLine + "}");
+                    string script = itemsPropEve.Value[0];
+                    amountTagSet += GetAmountTagSet(script);
+                    tempListPropEve.Add("_" + itemsPropEve.Key + "_OnPropertyChanged() {" + script + Environment.NewLine + "}");
                 }
             }
             // Nodes for going recursive
@@ -652,7 +697,7 @@ namespace ShowScripts
                 {
                     if (item.GetType().Name != "MultilingualText")
                     {
-                        var nodeDynPropEve = GetAllMyAttributesDynPropEves(item, deepSearch, whereConditions, sets);
+                        var nodeDynPropEve = GetAllMyAttributesDynPropEves(item, deepSearch, whereConditions, sets, ref amountTagSet);
                         foreach (var dyn in nodeDynPropEve[0])
                         {
                             Console.Write(';');  // the user wants to see that something happens, so a semicolon will be printed for every script
@@ -668,6 +713,7 @@ namespace ShowScripts
                             }
                             else
                             {
+                                amountTagSet += GetAmountTagSet(propEve);
                                 tempListPropEve.Add(propEve);
                                 index++;
                             }
@@ -678,7 +724,29 @@ namespace ShowScripts
             return new List<List<string>>() { tempListDyn, tempListPropEve };
         }
 
-        public List<string> GetAllMyAttributesEve(IEngineeringObject obj, List<string> whereConditions, List<string> sets)
+        private int GetAmountTagSet(string script)
+        {
+            int amountTagSet = 0;
+            var scriptLines = script.Split('\n').Where(x => !string.IsNullOrWhiteSpace(x.Trim()));
+            var keyWordsToTest = new Dictionary<string, int> { { ".Read(", 0 }, { ".Write(", 0 }, { ".SetTagValue(", 0 } };
+            var keys = keyWordsToTest.Keys.ToList();
+            foreach (var scriptLine in scriptLines)
+            {
+                foreach (var key in keys)
+                {
+                    if (keyWordsToTest[key] < 2 && scriptLine.Contains(key)) {
+                        keyWordsToTest[key]++;
+                        if (keyWordsToTest[key] >= 2)
+                        {
+                            amountTagSet++;
+                        }
+                    }
+                }
+            }
+            return amountTagSet;
+        }
+
+        public List<string> GetAllMyAttributesEve(IEngineeringObject obj, List<string> whereConditions, List<string> sets, ref int amountTagSet)
         {
             List<string> tempListEve = new List<string>();
 
@@ -691,14 +759,18 @@ namespace ShowScripts
                     Console.Write(';');  // the user wants to see that something happens, so a semicolon will be printed for every script
                     //tempListEve.Add(Environment.NewLine + "//eslint-disable-next-line camelcase");
                     tempListEve.Insert(0, itemsEve.Value[0]);
-                    tempListEve.Insert(1, Environment.NewLine + "export async function _" + objectName + "_" + itemsEve.Key + "() {" + itemsEve.Value[1] + Environment.NewLine + "}");
+                    string script = itemsEve.Value[1];
+                    amountTagSet += GetAmountTagSet(script);
+                    tempListEve.Insert(1, Environment.NewLine + "export async function _" + objectName + "_" + itemsEve.Key + "() {" + script + Environment.NewLine + "}");
                 }
 
                 if (itemsEve.Value.Count == 1)
                 {
                     Console.Write(';');  // the user wants to see that something happens, so a semicolon will be printed for every script
                     tempListEve.Add(Environment.NewLine + "//eslint-disable-next-line camelcase");
-                    tempListEve.Add("export async function _" + objectName + "_" + itemsEve.Key + "() {" + itemsEve.Value[0] + Environment.NewLine + "}");
+                    string script = itemsEve.Value[0];
+                    amountTagSet += GetAmountTagSet(script);
+                    tempListEve.Add("export async function _" + objectName + "_" + itemsEve.Key + "() {" + script + Environment.NewLine + "}");
                 }
             }
             return tempListEve;

@@ -33,7 +33,7 @@ namespace ShowScripts
             {
                 deviceNames.Add("");
             }
-            Work(cmdArgs.ContainsKey("-P") ? int.Parse(cmdArgs["-P"]) : -1, args.Length > 0 ? (args[0].ToLower() == "import") : false, cmdArgs.ContainsKey("--overwrite"));
+            Work(cmdArgs.ContainsKey("-P") ? int.Parse(cmdArgs["-P"]) : -1, args.Length > 0 ? (args[0].ToLower() == "import") : false, args.ToList().Contains("--overwrite"));
         }
         static void Work(int processId = -1, bool isImport = false, bool overwrite = false)
         {
