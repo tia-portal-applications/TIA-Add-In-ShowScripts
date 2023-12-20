@@ -315,6 +315,15 @@ namespace ShowScripts
                 screenName = _screenName;
             }
 
+            using (StreamWriter sw = File.CreateText(fileDirectory + "TextboxesWithoutText.csv"))
+            {
+                sw.WriteLine(string.Format("Screen name{0}item name", delimiter));
+            }
+            using (StreamWriter sw = File.CreateText(fileDirectory + "ScreenItemsOutOfRange.csv"))
+            {
+                sw.WriteLine(string.Format("Screen name{0}item name", delimiter));
+            }
+
             csvStringP.Add(string.Format("Screen name{0}Item count{0}Cycles{0}Disabled{0}Tags-Dyn-Scripts{0}Tags-Dyn{0} Total Number of Tags{0}Resource list{0}Events{0}Child screens{0}ScreenItemsOutOfRange{0}TextBoxesWithoutText{0}UseTagSet", delimiter));
 
             countScreenItems = new Dictionary<string, int>()
@@ -411,8 +420,8 @@ namespace ShowScripts
                 globalDefinitionAreaScriptCodeDyns = "";
                 globalDefinitionAreaScriptCodeEvents = "";
                 childScreens = new List<string>();
-                int screenItemsOutOfRange = 0;
-                int countTextboxesWithoutText = 0;
+                var screenItemsOutOfRange = new List<string>();
+                var countTextboxesWithoutText = new List<string>();
                 int amountTagSet = 0;
 
                 foreach (var key in countScreenItems.Keys.ToList())
@@ -476,7 +485,7 @@ namespace ShowScripts
                         uint height = (uint)dimensions[3];
                         if (left + width < 0 || top + height < 0 || left > screenWidth || top > screenHeight)
                         {
-                            screenItemsOutOfRange++;
+                            screenItemsOutOfRange.Add(screenitem.Name);
                         }
                     }
                     if (screenitem is HmiTextBox)
@@ -486,7 +495,7 @@ namespace ShowScripts
                         {
                             if (!string.IsNullOrWhiteSpace(item.Text.Replace("<body><p>", "").Replace("</p></body>", "")))
                             {
-                                countTextboxesWithoutText++;
+                                countTextboxesWithoutText.Add(screenitem.Name);
                                 break;
                             }
                         }
@@ -548,7 +557,7 @@ namespace ShowScripts
                 csvStringP.Add(string.Format(screen.Name + "{0}" + screen.ScreenItems.Count + "{0}" + (countDynTriggers["T100ms"] + countDynTriggers["T250ms"] + countDynTriggers["T500ms"] +
                     countDynTriggers["T1s"] + countDynTriggers["T2s"] + countDynTriggers["T5s"] + countDynTriggers["T10s"] + countDynTriggers["OtherCycles"]) + "{0}" +
                     countDynTriggers["Disabled"] + "{0}" + countDynTriggers["Tags"] + "{0}" + countDynTriggers["TagDynamizations"] + "{0}" + tagNames.Count() + "{0}" + countDynTriggers["ResourceLists"] + "{0}" +
-                    eventListCount + "{0}" + string.Join("&", childScreens) + "{0}" + countTextboxesWithoutText + "{0}" + screenItemsOutOfRange + "{0}" + amountTagSet, delimiter));
+                    eventListCount + "{0}" + string.Join("&", childScreens) + "{0}" + screenItemsOutOfRange.Count + "{0}" + countTextboxesWithoutText.Count + "{0}" + amountTagSet, delimiter));
 
                 foreach (var entry in countScreenItems)
                 {
@@ -568,6 +577,20 @@ namespace ShowScripts
                 using (StreamWriter sw = new StreamWriter(fileDirectory + screenNamePath + "_Events.js"))
                 {
                     sw.Write(string.Join(Environment.NewLine, eveList));
+                }
+                using (StreamWriter sw = File.AppendText(fileDirectory + "TextboxesWithoutText.csv"))
+                {
+                    foreach (var item in countTextboxesWithoutText)
+                    {
+                        sw.WriteLine(screen.Name + delimiter + item);
+                    }
+                }
+                using (StreamWriter sw = File.AppendText(fileDirectory + "ScreenItemsOutOfRange.csv"))
+                {
+                    foreach (var item in screenItemsOutOfRange)
+                    {
+                        sw.WriteLine(screen.Name + delimiter + item);
+                    }
                 }
             }
 
