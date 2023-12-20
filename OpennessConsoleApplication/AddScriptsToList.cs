@@ -30,7 +30,7 @@ namespace ShowScripts
         string globalDefinitionAreaScriptCodeEvents;
         List<string> childScreens;
         int check = 0;
-        char delimiter = ';';
+        string delimiter = ";";
 
         public void ImportScripts(IEnumerable<HmiScreen> screens, string fileDirectory)
         {
@@ -378,7 +378,7 @@ namespace ShowScripts
             for (var i = 0; i < screenCount; i++)
             {
                 var screen = screensToExport[i];
-                string screenNamePath = string.Join("_", screen.Name.Split(Path.GetInvalidFileNameChars())).Replace(delimiter, '_');
+                string screenNamePath = string.Join("_", screen.Name.Split(Path.GetInvalidFileNameChars())).Replace(delimiter, "_");
                 if (!overwrite && File.Exists(fileDirectory + screenNamePath + "_Dynamizations.js") && File.Exists(fileDirectory + screenNamePath + "_Events.js"))
                 {
                     continue;
@@ -572,13 +572,14 @@ namespace ShowScripts
             }
 
             //fill empty space with 0 
-            int longestEntry = csvStringP[0].Count(x => x == delimiter);
+            char cDelimiter = delimiter[0];
+            int longestEntry = csvStringP[0].Count(x => x == cDelimiter);
             int counterFaceplateTypes = 0;
             foreach (var entry in csvStringP.ToList())
             {
                 if (counterFaceplateTypes != 0)
                 {
-                    for (int i = entry.Count(x => x == delimiter); i <= longestEntry; i++)
+                    for (int i = entry.Count(x => x == cDelimiter); i <= longestEntry; i++)
                     {
                         csvStringP[counterFaceplateTypes] += "0" + delimiter;
                     }
