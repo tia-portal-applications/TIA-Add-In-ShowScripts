@@ -24,11 +24,29 @@ namespace ShowScripts
 
         protected override void BuildContextMenuItems(ContextMenuAddInRoot addInRootSubmenu)
         {
-            addInRootSubmenu.Items.AddActionItem<IEngineeringObject>("Export all scripts of HMI", OnClickExport, DisplayStatus);
+            addInRootSubmenu.Items.AddActionItem<IEngineeringObject>("Export all scripts of HMI overwrite - silent", OnClickExportOverwriteSilent, DisplayStatus);
+            addInRootSubmenu.Items.AddActionItem<IEngineeringObject>("Export all scripts of HMI - silent", OnClickExportSilent, DisplayStatus);
             addInRootSubmenu.Items.AddActionItem<IEngineeringObject>("Export all scripts of HMI overwrite", OnClickExportOverwrite, DisplayStatus);
+            addInRootSubmenu.Items.AddActionItem<IEngineeringObject>("Export all scripts of HMI", OnClickExport, DisplayStatus);
             addInRootSubmenu.Items.AddActionItem<IEngineeringObject>("Import all scripts to HMI", OnClickImport, DisplayStatus);
         }
 
+        private void OnClickExportSilent(MenuSelectionProvider<IEngineeringObject> menuSelectionProvider)
+        {
+#if DEBUG
+            Debugger.Launch();
+#endif
+            string args = "export --silent";
+            args = StartApplication(menuSelectionProvider, args);
+        }
+        private void OnClickExportOverwriteSilent(MenuSelectionProvider<IEngineeringObject> menuSelectionProvider)
+        {
+#if DEBUG
+            Debugger.Launch();
+#endif
+            string args = "export --overwrite --silent";
+            args = StartApplication(menuSelectionProvider, args);
+        }
         private void OnClickExport(MenuSelectionProvider<IEngineeringObject> menuSelectionProvider)
         {
 #if DEBUG

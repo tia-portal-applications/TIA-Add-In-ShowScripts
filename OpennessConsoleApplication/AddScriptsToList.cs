@@ -270,14 +270,14 @@ namespace ShowScripts
         /// <param name="screenName">Case ignored, e.g. *, Screen_*</param>
         /// <param name="whereCondition">e.g. Dynamization.Trigger.Type=250</param>
         /// <param name="sets">e.g. Dynamization.Trigger.Type=4, Dynamization.Trigger.Tags='Refresh_tag'</param>
-        public void ExportScripts(IEnumerable<HmiScreen> screens, string fileDirectory, string screenName, string deviceName, bool overwrite, bool deepSearch = false)
+        public void ExportScripts(IEnumerable<HmiScreen> screens, string fileDirectory, string screenName, string deviceName, bool overwrite, bool silent, bool deepSearch = false)
         {
             string whereCondition = "";
             string sets = "";
             var csvStringP = new List<string>();
             string _screenName = "";
             
-            if(screenName == ".*" && check == 0)
+            if(!silent && screenName == ".*" && check == 0)
             {
                 InputForm dialog = new InputForm(deviceName + " - Enter a screen name: ");
                 dialog.Text = "Screen name";
@@ -317,11 +317,19 @@ namespace ShowScripts
 
             using (StreamWriter sw = File.CreateText(fileDirectory + "TextboxesWithoutText.csv"))
             {
-                sw.WriteLine(string.Format("Screen name{0}item name", delimiter));
+                sw.WriteLine(string.Format("Screen{0}Object", delimiter));
             }
             using (StreamWriter sw = File.CreateText(fileDirectory + "ScreenItemsOutOfRange.csv"))
             {
-                sw.WriteLine(string.Format("Screen name{0}item name", delimiter));
+                sw.WriteLine(string.Format("Screen{0}Object", delimiter));
+            }
+            using (StreamWriter sw = new StreamWriter(fileDirectory + "CyclicTrigger.csv"))
+            {
+                sw.WriteLine(string.Format("Screen{0}Object{0}Event/Dynamization{0}Cyclic trigger", delimiter));
+            }
+            using (StreamWriter sw = new StreamWriter(fileDirectory + "TagSetUsages.csv"))
+            {
+                sw.WriteLine(string.Format("Screen{0}Object{0}Event/Dynamization", delimiter));
             }
 
             csvStringP.Add(string.Format("Screen name{0}Item count{0}Cycles{0}Disabled{0}Tags-Dyn-Scripts{0}Tags-Dyn{0} Total Number of Tags{0}Resource list{0}Events{0}Child screens{0}ScreenItemsOutOfRange{0}TextBoxesWithoutText{0}UseTagSet", delimiter));
@@ -421,8 +429,9 @@ namespace ShowScripts
                 globalDefinitionAreaScriptCodeEvents = "";
                 childScreens = new List<string>();
                 var screenItemsOutOfRange = new List<string>();
+                var cycles = new List<string>();
                 var countTextboxesWithoutText = new List<string>();
-                int amountTagSet = 0;
+                IEnumerable<string> tagSetUsages = new List<string>();
 
                 foreach (var key in countScreenItems.Keys.ToList())
                 {
@@ -435,20 +444,20 @@ namespace ShowScripts
                 }
 
                 // calculations
-                var screenDynsPropEves = GetAllMyAttributesDynPropEves(screen, deepSearch, whereCondition.Split(',').ToList(), sets.Split(',').ToList(), ref amountTagSet);
+                var screenDynsPropEves = GetAllMyAttributesDynPropEves(screen, deepSearch, whereCondition.Split(',').ToList(), sets.Split(',').ToList(), ref tagSetUsages, ref cycles);
                 var screenDyns = screenDynsPropEves[0];
                 var screenPropEves = screenDynsPropEves[1];
-                var screenEves = GetAllMyAttributesEve(screen, whereCondition.Split(',').ToList(), sets.Split(',').ToList(), ref amountTagSet);
+                var screenEves = GetAllMyAttributesEve(screen, whereCondition.Split(',').ToList(), sets.Split(',').ToList(), ref tagSetUsages, ref cycles);
                 uint screenWidth = screen.Width;
                 uint screenHeight = screen.Height;
 
                 foreach (var screenitem in screen.ScreenItems)
                 {
                     Console.Write('.');  // the user wants to see that something happens, so a dot will be printed for every screenitem
-                    var screenitemDynsPropEves = GetAllMyAttributesDynPropEves(screenitem, deepSearch, whereCondition.Split(',').ToList(), sets.Split(',').ToList(), ref amountTagSet);
+                    var screenitemDynsPropEves = GetAllMyAttributesDynPropEves(screenitem, deepSearch, whereCondition.Split(',').ToList(), sets.Split(',').ToList(), ref tagSetUsages, ref cycles);
                     var screenitemDyns = screenitemDynsPropEves[0];
                     var screenitemPropEves = screenitemDynsPropEves[1];
-                    var screenitemEves = GetAllMyAttributesEve(screenitem, whereCondition.Split(',').ToList(), sets.Split(',').ToList(), ref amountTagSet);
+                    var screenitemEves = GetAllMyAttributesEve(screenitem, whereCondition.Split(',').ToList(), sets.Split(',').ToList(), ref tagSetUsages, ref cycles);
 
                     screenItemEvents = screenItemEvents.Concat(screenitemEves).ToList().Concat(screenitemPropEves).ToList();
 
@@ -560,7 +569,7 @@ namespace ShowScripts
                 csvStringP.Add(string.Format(screen.Name + "{0}" + screen.ScreenItems.Count + "{0}" + (countDynTriggers["T100ms"] + countDynTriggers["T250ms"] + countDynTriggers["T500ms"] +
                     countDynTriggers["T1s"] + countDynTriggers["T2s"] + countDynTriggers["T5s"] + countDynTriggers["T10s"] + countDynTriggers["OtherCycles"]) + "{0}" +
                     countDynTriggers["Disabled"] + "{0}" + countDynTriggers["Tags"] + "{0}" + countDynTriggers["TagDynamizations"] + "{0}" + tagNames.Count() + "{0}" + countDynTriggers["ResourceLists"] + "{0}" +
-                    eventListCount + "{0}" + string.Join("&", childScreens) + "{0}" + screenItemsOutOfRange.Count + "{0}" + countTextboxesWithoutText.Count + "{0}" + amountTagSet, delimiter));
+                    eventListCount + "{0}" + string.Join("&", childScreens) + "{0}" + screenItemsOutOfRange.Count + "{0}" + countTextboxesWithoutText.Count + "{0}" + tagSetUsages.Count(), delimiter));
 
                 foreach (var entry in countScreenItems)
                 {
@@ -591,6 +600,20 @@ namespace ShowScripts
                 using (StreamWriter sw = new StreamWriter(fileDirectory + "ScreenItemsOutOfRange.csv", true))
                 {
                     foreach (var item in screenItemsOutOfRange)
+                    {
+                        sw.WriteLine(screen.Name + delimiter + item);
+                    }
+                }
+                using (StreamWriter sw = new StreamWriter(fileDirectory + "TagSetUsages.csv", true))
+                {
+                    foreach (var item in tagSetUsages)
+                    {
+                        sw.WriteLine(screen.Name + delimiter + item);
+                    }
+                }
+                using (StreamWriter sw = new StreamWriter(fileDirectory + "CyclicTrigger.csv", true))
+                {
+                    foreach (var item in cycles)
                     {
                         sw.WriteLine(screen.Name + delimiter + item);
                     }
@@ -637,13 +660,13 @@ namespace ShowScripts
             }
         }
 
-        public List<List<string>> GetAllMyAttributesDynPropEves(IEngineeringObject obj, bool deepSearch, List<string> whereConditions, List<string> sets, ref int amountTagSet)
+        public List<List<string>> GetAllMyAttributesDynPropEves(IEngineeringObject obj, bool deepSearch, List<string> whereConditions, List<string> sets, ref IEnumerable<string> tagSetUsage, ref List<string> cycles)
         {
             var tempListDyn = new List<string>();
             var tempListPropEve = new List<string>();
 
-            var dynamizations = GetDynamizations(obj, whereConditions, sets);
-            var propertyEvents = GetPropertyEvents(obj, whereConditions, sets);
+            var dynamizations = GetDynamizations(obj, whereConditions, sets, ref cycles);
+            var propertyEvents = GetPropertyEvents(obj, whereConditions, sets, ref cycles);
 
             var objectName = obj.GetAttribute("Name").ToString().Replace(' ', '_').Replace('-', '_').Replace('&', 'ß');
             foreach (var itemsDyn in dynamizations)
@@ -653,7 +676,7 @@ namespace ShowScripts
                     Console.Write(';');  // the user wants to see that something happens, so a semicolon will be printed for every script
                     tempListDyn.Insert(0, itemsDyn.Value[0]);
                     string script = itemsDyn.Value[1];
-                    amountTagSet += GetAmountTagSet(script);
+                    tagSetUsage = tagSetUsage.Concat(GetTagSetUsage(script, objectName + delimiter + itemsDyn.Key));
                     tempListDyn.Insert(1, "function _" + objectName + "_" + itemsDyn.Key + "_Trigger() {" + script + Environment.NewLine + "}");
                 }
 
@@ -662,7 +685,7 @@ namespace ShowScripts
                     Console.Write(';');  // the user wants to see that something happens, so a semicolon will be printed for every script
                     tempListDyn.Add(Environment.NewLine + "//eslint-disable-next-line camelcase");
                     string script = itemsDyn.Value[0];
-                    amountTagSet += GetAmountTagSet(script);
+                    tagSetUsage = tagSetUsage.Concat(GetTagSetUsage(script, objectName + delimiter + itemsDyn.Key));
                     tempListDyn.Add("function _" + objectName + "_" + itemsDyn.Key + "_Trigger() {" + script + Environment.NewLine + "}");
                 }
 
@@ -671,7 +694,7 @@ namespace ShowScripts
                     Console.Write(';');  // the user wants to see that something happens, so a semicolon will be printed for every script
                     tempListDyn.Add(Environment.NewLine + "//eslint-disable-next-line camelcase");
                     string script = itemsDyn.Value[0];
-                    amountTagSet += GetAmountTagSet(script);
+                    tagSetUsage = tagSetUsage.Concat(GetTagSetUsage(script, itemsDyn.Key));
                     tempListDyn.Add("_" + itemsDyn.Key + "_Trigger() {" + Environment.NewLine + script + Environment.NewLine + "}");
                 }
             }
@@ -683,7 +706,7 @@ namespace ShowScripts
                 {
                     tempListPropEve.Insert(0, itemsPropEve.Value[0]);
                     string script = itemsPropEve.Value[1];
-                    amountTagSet += GetAmountTagSet(script);
+                    tagSetUsage = tagSetUsage.Concat(GetTagSetUsage(script, objectName + delimiter + itemsPropEve.Key));
                     tempListPropEve.Insert(1, Environment.NewLine + "export function _" + objectName + "_" + itemsPropEve.Key + "_OnPropertyChanged() {" + script + Environment.NewLine + "}");
                 }
 
@@ -691,7 +714,7 @@ namespace ShowScripts
                 {
                     tempListPropEve.Add(Environment.NewLine + "//eslint-disable-next-line camelcase");
                     string script = itemsPropEve.Value[0];
-                    amountTagSet += GetAmountTagSet(script);
+                    tagSetUsage = tagSetUsage.Concat(GetTagSetUsage(script, objectName + delimiter + itemsPropEve.Key));
                     tempListPropEve.Add("export function _" + objectName + "_" + itemsPropEve.Key + "_OnPropertyChanged() {" + script + Environment.NewLine + " }");
                 }
 
@@ -699,7 +722,7 @@ namespace ShowScripts
                 {
                     tempListPropEve.Insert(0, itemsPropEve.Value[0]);
                     string script = itemsPropEve.Value[1];
-                    amountTagSet += GetAmountTagSet(script);
+                    tagSetUsage = tagSetUsage.Concat(GetTagSetUsage(script, itemsPropEve.Key));
                     tempListPropEve.Insert(1, "_" + itemsPropEve.Key + "_OnPropertyChanged() {" + script + Environment.NewLine + "}");
                 }
 
@@ -707,7 +730,7 @@ namespace ShowScripts
                 {
                     tempListPropEve.Add(Environment.NewLine + "//eslint-disable-next-line camelcase");
                     string script = itemsPropEve.Value[0];
-                    amountTagSet += GetAmountTagSet(script);
+                    tagSetUsage = tagSetUsage.Concat(GetTagSetUsage(script, itemsPropEve.Key));
                     tempListPropEve.Add("_" + itemsPropEve.Key + "_OnPropertyChanged() {" + script + Environment.NewLine + "}");
                 }
             }
@@ -724,7 +747,7 @@ namespace ShowScripts
                 {
                     if (item.GetType().Name != "MultilingualText")
                     {
-                        var nodeDynPropEve = GetAllMyAttributesDynPropEves(item, deepSearch, whereConditions, sets, ref amountTagSet);
+                        var nodeDynPropEve = GetAllMyAttributesDynPropEves(item, deepSearch, whereConditions, sets, ref tagSetUsage, ref cycles);
                         foreach (var dyn in nodeDynPropEve[0])
                         {
                             Console.Write(';');  // the user wants to see that something happens, so a semicolon will be printed for every script
@@ -740,7 +763,7 @@ namespace ShowScripts
                             }
                             else
                             {
-                                amountTagSet += GetAmountTagSet(propEve);
+                                tagSetUsage = tagSetUsage.Concat(GetTagSetUsage(propEve, obj.GetAttribute("Name").ToString()));
                                 tempListPropEve.Add(propEve);
                                 index++;
                             }
@@ -751,9 +774,9 @@ namespace ShowScripts
             return new List<List<string>>() { tempListDyn, tempListPropEve };
         }
 
-        private int GetAmountTagSet(string script)
+        private List<string> GetTagSetUsage(string script, string eventDynName)
         {
-            int amountTagSet = 0;
+            var tagSetUsage = new List<string>();
             var scriptLines = script.Split('\n').Where(x => !string.IsNullOrWhiteSpace(x.Trim()));
             var keyWordsToTest = new Dictionary<string, int> { { ".Read(", 0 }, { ".Write(", 0 }, { ".SetTagValue(", 0 } };
             var keys = keyWordsToTest.Keys.ToList();
@@ -765,19 +788,19 @@ namespace ShowScripts
                         keyWordsToTest[key]++;
                         if (keyWordsToTest[key] >= 2)
                         {
-                            amountTagSet++;
+                            tagSetUsage.Add(eventDynName);
                         }
                     }
                 }
             }
-            return amountTagSet;
+            return tagSetUsage;
         }
 
-        public List<string> GetAllMyAttributesEve(IEngineeringObject obj, List<string> whereConditions, List<string> sets, ref int amountTagSet)
+        public List<string> GetAllMyAttributesEve(IEngineeringObject obj, List<string> whereConditions, List<string> sets, ref IEnumerable<string> tagSetUsage, ref List<string> cycles)
         {
             List<string> tempListEve = new List<string>();
 
-            var events = GetEvents(obj, whereConditions, sets);
+            var events = GetEvents(obj, whereConditions, sets, ref cycles);
             var objectName = obj.GetAttribute("Name").ToString().Replace(' ', '_').Replace('-', '_').Replace('&', 'ß');
             foreach (var itemsEve in events)
             {
@@ -787,7 +810,7 @@ namespace ShowScripts
                     //tempListEve.Add(Environment.NewLine + "//eslint-disable-next-line camelcase");
                     tempListEve.Insert(0, itemsEve.Value[0]);
                     string script = itemsEve.Value[1];
-                    amountTagSet += GetAmountTagSet(script);
+                    tagSetUsage = tagSetUsage.Concat(GetTagSetUsage(script, objectName + delimiter + itemsEve.Key));
                     tempListEve.Insert(1, Environment.NewLine + "export async function _" + objectName + "_" + itemsEve.Key + "() {" + script + Environment.NewLine + "}");
                 }
 
@@ -796,7 +819,7 @@ namespace ShowScripts
                     Console.Write(';');  // the user wants to see that something happens, so a semicolon will be printed for every script
                     tempListEve.Add(Environment.NewLine + "//eslint-disable-next-line camelcase");
                     string script = itemsEve.Value[0];
-                    amountTagSet += GetAmountTagSet(script);
+                    tagSetUsage = tagSetUsage.Concat(GetTagSetUsage(script, objectName + delimiter + itemsEve.Key));
                     tempListEve.Add("export async function _" + objectName + "_" + itemsEve.Key + "() {" + script + Environment.NewLine + "}");
                 }
             }
@@ -850,7 +873,7 @@ namespace ShowScripts
             catch (Exception ex) { Console.WriteLine(ex.Message); }
         }
 
-        private Dictionary<string, List<string>> GetScripts(IEngineeringObject obj, string compositionName, List<string> whereConditions, List<string> sets)
+        private Dictionary<string, List<string>> GetScripts(IEngineeringObject obj, string compositionName, List<string> whereConditions, List<string> sets, ref List<string> cycles)
         {
             var dict = new Dictionary<string, List<string>>();
             var scripts = new List<string>();
@@ -926,13 +949,17 @@ namespace ShowScripts
                                 globalDefinitionAreaScriptCodeDyns = dyn.GetType().GetProperty("GlobalDefinitionAreaScriptCode").GetValue(dyn).ToString().Replace("\r\n", Environment.NewLine);
                             }
                             string script = dyn.GetType().GetProperty("ScriptCode").GetValue(dyn).ToString().Replace("\r\n", Environment.NewLine);
-                            if ((dyn as ScriptDynamization).Trigger.Type.ToString() == "Tags")
+                            if ((dyn as ScriptDynamization).Trigger.Type == TriggerType.Tags)
                             {
                                 listDyn.Add("// Trigger: " + (dyn as ScriptDynamization).Trigger.Type.ToString() + " " + String.Join(", ", ((dyn as ScriptDynamization).Trigger.Tags) as List<string>) + Environment.NewLine + script);
                             }
                             else
                             {
                                 listDyn.Add("// Trigger: " + (dyn as ScriptDynamization).Trigger.Type.ToString() + Environment.NewLine + script);
+                                if ((dyn as ScriptDynamization).Trigger.Type != TriggerType.Disabled)
+                                {
+                                    cycles.Add(dyn.Parent.GetAttribute("Name") + delimiter + dyn.PropertyName + delimiter + (dyn as ScriptDynamization).Trigger.Type);
+                                }
                             }
                             switch ((dyn as ScriptDynamization).Trigger.Type)
                             {
@@ -1037,17 +1064,17 @@ namespace ShowScripts
             }
             return dict;
         }
-        private Dictionary<string, List<string>> GetDynamizations(IEngineeringObject obj, List<string> whereConditions, List<string> sets)
+        private Dictionary<string, List<string>> GetDynamizations(IEngineeringObject obj, List<string> whereConditions, List<string> sets, ref List<string> cycles)
         {
-            return GetScripts(obj, "Dynamizations", whereConditions, sets);
+            return GetScripts(obj, "Dynamizations", whereConditions, sets, ref cycles);
         }
-        private Dictionary<string, List<string>> GetEvents(IEngineeringObject obj, List<string> whereConditions, List<string> sets)
+        private Dictionary<string, List<string>> GetEvents(IEngineeringObject obj, List<string> whereConditions, List<string> sets, ref List<string> cycles)
         {
-            return GetScripts(obj, "EventHandlers", whereConditions, sets);
+            return GetScripts(obj, "EventHandlers", whereConditions, sets, ref cycles);
         }
-        private Dictionary<string, List<string>> GetPropertyEvents(IEngineeringObject obj, List<string> whereConditions, List<string> sets)
+        private Dictionary<string, List<string>> GetPropertyEvents(IEngineeringObject obj, List<string> whereConditions, List<string> sets, ref List<string> cycles)
         {
-            return GetScripts(obj, "PropertyEventHandlers", whereConditions, sets);
+            return GetScripts(obj, "PropertyEventHandlers", whereConditions, sets, ref cycles);
         }
     }
 

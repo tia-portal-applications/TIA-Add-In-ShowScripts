@@ -33,9 +33,9 @@ namespace ShowScripts
             {
                 deviceNames.Add("");
             }
-            Work(cmdArgs.ContainsKey("-P") ? int.Parse(cmdArgs["-P"]) : -1, args.Length > 0 ? (args[0].ToLower() == "import") : false, args.ToList().Contains("--overwrite"));
+            Work(cmdArgs.ContainsKey("-P") ? int.Parse(cmdArgs["-P"]) : -1, args.Length > 0 ? (args[0].ToLower() == "import") : false, args.ToList().Contains("--overwrite"), args.ToList().Contains("--silent"));
         }
-        static void Work(int processId = -1, bool isImport = false, bool overwrite = false)
+        static void Work(int processId = -1, bool isImport = false, bool overwrite = false, bool silent = false)
         {
             string screenName = ".*";
             TiaPortal tiaPortal = null;
@@ -76,7 +76,7 @@ namespace ShowScripts
                 var worker = new AddScriptsToList();
                 if (!isImport)
                 {
-                    worker.ExportScripts(screens, fileDirectory, screenName, deviceName, overwrite);
+                    worker.ExportScripts(screens, fileDirectory, screenName, deviceName, overwrite, silent);
 
                     // run command to fix scripts with eslint rules
                     var processStartInfo = new ProcessStartInfo();
