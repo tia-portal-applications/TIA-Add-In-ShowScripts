@@ -667,6 +667,47 @@ namespace ShowScripts
             {
                 sw.Write(string.Join(Environment.NewLine, csvStringP));
             }
+
+            //check if files are filled or not and delete if they are not filled
+            int lineCount;
+            using (StreamReader sr = new StreamReader(fileDirectory + "CyclicTrigger.csv"))
+            {
+                lineCount = sr.ReadToEnd().Split('\n').Length;
+            }
+            if (lineCount <= 2) //2 because header and empty line afterwards
+            {
+                File.Delete(fileDirectory + "CyclicTrigger.csv");
+            }
+
+            lineCount = 0;
+            using (StreamReader sr = new StreamReader(fileDirectory + "ScreenItemsOutOfRange.csv"))
+            {
+                lineCount = sr.ReadToEnd().Split('\n').Length;
+            }
+            if (lineCount <= 2)//2 because header and empty line afterwards
+            {
+                File.Delete(fileDirectory + "ScreenItemsOutOfRange.csv");
+            }
+
+            lineCount = 0;
+            using (StreamReader sr = new StreamReader(fileDirectory + "TagSetUsages.csv"))
+            {
+                lineCount = sr.ReadToEnd().Split('\n').Length;
+            }
+            if (lineCount <= 2)//2 because header and empty line afterwards
+            {
+                File.Delete(fileDirectory + "TagSetUsages.csv");
+            }
+
+            lineCount = 0;
+            using (StreamReader sr = new StreamReader(fileDirectory + "TextboxesWithoutText.csv"))
+            {
+                lineCount = sr.ReadToEnd().Split('\n').Length;
+            }
+            if (lineCount <= 2)//2 because header and empty line afterwards
+            {
+                File.Delete(fileDirectory + "TextboxesWithoutText.csv");
+            }
         }
 
         public List<List<string>> GetAllMyAttributesDynPropEves(IEngineeringObject obj, bool deepSearch, List<string> whereConditions, List<string> sets, ref IEnumerable<string> tagSetUsage, ref List<string> cycles)
