@@ -582,19 +582,28 @@ namespace ShowScripts
                 }
                 csvStringP[csvStringP.Count - 1] += delimiter;
 
-                using (StreamWriter sw = new StreamWriter(fileDirectory + screenNamePath + "_Dynamizations.js"))
+                if (dynList.Count() > 0)
                 {
-                    sw.Write(string.Join(Environment.NewLine, dynList));
-                }
-                using (StreamWriter sw = new StreamWriter(fileDirectory + screenNamePath + "_Events.js"))
-                {
-                    sw.Write(string.Join(Environment.NewLine, eveList));
-                }
-                using (StreamWriter sw = new StreamWriter(fileDirectory + "TextboxesWithoutText.csv", true))
-                {
-                    foreach (var item in countTextboxesWithoutText)
+                    using (StreamWriter sw = new StreamWriter(fileDirectory + screenNamePath + "_Dynamizations.js"))
                     {
-                        sw.WriteLine(screen.Name + delimiter + item);
+                        sw.Write(string.Join(Environment.NewLine, dynList));
+                    }
+                }
+                if (eveList.Count() > 3)
+                {
+                    using (StreamWriter sw = new StreamWriter(fileDirectory + screenNamePath + "_Events.js"))
+                    {
+                        sw.Write(string.Join(Environment.NewLine, eveList));
+                    }
+                }
+                if (countTextboxesWithoutText.Count() > 0)
+                {
+                    using (StreamWriter sw = new StreamWriter(fileDirectory + "TextboxesWithoutText.csv", true))
+                    {
+                        foreach (var item in countTextboxesWithoutText)
+                        {
+                            sw.WriteLine(screen.Name + delimiter + item);
+                        }
                     }
                 }
                 using (StreamWriter sw = new StreamWriter(fileDirectory + "ScreenItemsOutOfRange.csv", true))
