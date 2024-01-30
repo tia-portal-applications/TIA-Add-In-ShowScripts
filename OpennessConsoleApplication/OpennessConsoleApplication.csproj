@@ -53,7 +53,7 @@
     <Reference Include="PresentationCore" />
     <Reference Include="PresentationFramework" />
     <Reference Include="Siemens.Engineering">
-      <HintPath>C:\Program Files\Siemens\Automation\Portal V19\PublicAPI\V19\Siemens.Engineering.dll</HintPath>
+      <HintPath>C:\Program Files\Siemens\Automation\Portal V18\PublicAPI\V18\Siemens.Engineering.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="System" />

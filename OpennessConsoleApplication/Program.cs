@@ -66,7 +66,7 @@ namespace ShowScripts
                 var screens = GetScreens(tiaPortalProject, deviceName);
 
                 List<ScreenDynEvents> screenDynEvenList = new List<ScreenDynEvents>();
-                string fileDirectory = tiaPortalProject.Path.DirectoryName + "\\UserFiles\\" + deviceName + "\\";
+                string fileDirectory = tiaPortalProject.Path.DirectoryName + "\\UserFiles\\ShowScripts_" + deviceName + "\\";
                 if (!Directory.Exists(fileDirectory))
                 {
                     Directory.CreateDirectory(fileDirectory);
