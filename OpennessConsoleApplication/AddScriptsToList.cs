@@ -15,7 +15,6 @@ using Siemens.Engineering.HmiUnified.UI.Events;
 using System.IO;
 using System.Windows.Forms;
 using Siemens.Engineering.HmiUnified.UI.Widgets;
-using Siemens.Engineering.HmiUnified.UI.Shapes;
 
 namespace ShowScripts
 {
@@ -359,7 +358,6 @@ namespace ShowScripts
                     { "HmiListBox", 0 },
                     { "HmiClock", 0 },
                     { "HmiTextBox", 0 },
-                    { "HmiText", 0 },
                     { "HmiLine", 0 },
                     { "HmiPolyline", 0 },
                     { "HmiPolygon", 0 },
@@ -499,10 +497,11 @@ namespace ShowScripts
                             screenItemsOutOfRange.Add(screenitem.Name);
                         }
                     }
-                    if (screenitem is HmiTextBox || screenitem is HmiText)
+                    if (screenitem is HmiTextBox)
                     {
+                        var tb = screenitem as HmiTextBox;
                         bool textboxWithoutText = true;
-                        foreach (var item in (screenitem.GetAttribute("Text") as MultilingualText).Items)  // check if there is any character inside any text of any language
+                        foreach (var item in tb.Text.Items)  // check if there is any character inside any text of any language
                         {
                             if (!string.IsNullOrWhiteSpace(item.Text.Replace("<body><p>", "").Replace("</p></body>", "")))
                             {
@@ -583,19 +582,28 @@ namespace ShowScripts
                 }
                 csvStringP[csvStringP.Count - 1] += delimiter;
 
-                using (StreamWriter sw = new StreamWriter(fileDirectory + screenNamePath + "_Dynamizations.js"))
+                if (dynList.Count() > 0)
                 {
-                    sw.Write(string.Join(Environment.NewLine, dynList));
-                }
-                using (StreamWriter sw = new StreamWriter(fileDirectory + screenNamePath + "_Events.js"))
-                {
-                    sw.Write(string.Join(Environment.NewLine, eveList));
-                }
-                using (StreamWriter sw = new StreamWriter(fileDirectory + "TextboxesWithoutText.csv", true))
-                {
-                    foreach (var item in countTextboxesWithoutText)
+                    using (StreamWriter sw = new StreamWriter(fileDirectory + screenNamePath + "_Dynamizations.js"))
                     {
-                        sw.WriteLine(screen.Name + delimiter + item);
+                        sw.Write(string.Join(Environment.NewLine, dynList));
+                    }
+                }
+                if (eveList.Count() > 3)
+                {
+                    using (StreamWriter sw = new StreamWriter(fileDirectory + screenNamePath + "_Events.js"))
+                    {
+                        sw.Write(string.Join(Environment.NewLine, eveList));
+                    }
+                }
+                if (countTextboxesWithoutText.Count() > 0)
+                {
+                    using (StreamWriter sw = new StreamWriter(fileDirectory + "TextboxesWithoutText.csv", true))
+                    {
+                        foreach (var item in countTextboxesWithoutText)
+                        {
+                            sw.WriteLine(screen.Name + delimiter + item);
+                        }
                     }
                 }
                 using (StreamWriter sw = new StreamWriter(fileDirectory + "ScreenItemsOutOfRange.csv", true))
@@ -658,6 +666,47 @@ namespace ShowScripts
             using (StreamWriter sw = new StreamWriter(fileDirectory + rtName + "_Scripts_Overview.csv"))
             {
                 sw.Write(string.Join(Environment.NewLine, csvStringP));
+            }
+
+            //check if files are filled or not and delete if they are not filled
+            int lineCount;
+            using (StreamReader sr = new StreamReader(fileDirectory + "CyclicTrigger.csv"))
+            {
+                lineCount = sr.ReadToEnd().Split('\n').Length;
+            }
+            if (lineCount <= 2) //2 because header and empty line afterwards
+            {
+                File.Delete(fileDirectory + "CyclicTrigger.csv");
+            }
+
+            lineCount = 0;
+            using (StreamReader sr = new StreamReader(fileDirectory + "ScreenItemsOutOfRange.csv"))
+            {
+                lineCount = sr.ReadToEnd().Split('\n').Length;
+            }
+            if (lineCount <= 2)//2 because header and empty line afterwards
+            {
+                File.Delete(fileDirectory + "ScreenItemsOutOfRange.csv");
+            }
+
+            lineCount = 0;
+            using (StreamReader sr = new StreamReader(fileDirectory + "TagSetUsages.csv"))
+            {
+                lineCount = sr.ReadToEnd().Split('\n').Length;
+            }
+            if (lineCount <= 2)//2 because header and empty line afterwards
+            {
+                File.Delete(fileDirectory + "TagSetUsages.csv");
+            }
+
+            lineCount = 0;
+            using (StreamReader sr = new StreamReader(fileDirectory + "TextboxesWithoutText.csv"))
+            {
+                lineCount = sr.ReadToEnd().Split('\n').Length;
+            }
+            if (lineCount <= 2)//2 because header and empty line afterwards
+            {
+                File.Delete(fileDirectory + "TextboxesWithoutText.csv");
             }
         }
 
