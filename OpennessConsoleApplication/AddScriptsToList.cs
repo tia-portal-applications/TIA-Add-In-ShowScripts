@@ -499,18 +499,14 @@ namespace ShowScripts
                     }
                     if (screenitem is HmiTextBox)
                     {
-                        var tb = screenitem as HmiTextBox;
-                        bool textboxWithoutText = true;
-                        foreach (var item in tb.Text.Items)  // check if there is any character inside any text of any language
+                        foreach (var item in (screenitem as HmiTextBox).Text.Items)  // check if there is any text of any language that is empty (default texts are usually "Text", so not all textboxes will be catched, if we try to check, if all texts are empty. So we now check, if any text is empty
                         {
-                            if (!string.IsNullOrWhiteSpace(item.Text.Replace("<body><p>", "").Replace("</p></body>", "")))
+                            if (string.IsNullOrWhiteSpace(item.Text.Replace("<body><p>", "").Replace("</p></body>", "")))
                             {
-                                textboxWithoutText = false;
+                                countTextboxesWithoutText.Add(screenitem.Name);
                                 break;
                             }
                         }
-                        if (textboxWithoutText)
-                            countTextboxesWithoutText.Add(screenitem.Name);
                     }
                 }
 

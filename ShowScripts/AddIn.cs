@@ -24,10 +24,10 @@ namespace ShowScripts
 
         protected override void BuildContextMenuItems(ContextMenuAddInRoot addInRootSubmenu)
         {
-            addInRootSubmenu.Items.AddActionItem<IEngineeringObject>("Export all scripts of HMI overwrite - silent", OnClickExportOverwriteSilent, DisplayStatus);
-            addInRootSubmenu.Items.AddActionItem<IEngineeringObject>("Export all scripts of HMI - silent", OnClickExportSilent, DisplayStatus);
-            addInRootSubmenu.Items.AddActionItem<IEngineeringObject>("Export all scripts of HMI overwrite", OnClickExportOverwrite, DisplayStatus);
-            addInRootSubmenu.Items.AddActionItem<IEngineeringObject>("Export all scripts of HMI", OnClickExport, DisplayStatus);
+            addInRootSubmenu.Items.AddActionItem<IEngineeringObject>("Export all scripts of HMI - all screens", OnClickExportOverwriteSilent, DisplayStatus);
+            addInRootSubmenu.Items.AddActionItem<IEngineeringObject>("Export all scripts of HMI", OnClickExportOverwrite, DisplayStatus);
+            addInRootSubmenu.Items.AddActionItem<IEngineeringObject>("Export all scripts of HMI - continue from last export - all screens", OnClickExportSilent, DisplayStatus);
+            addInRootSubmenu.Items.AddActionItem<IEngineeringObject>("Export all scripts of HMI - continue from last export", OnClickExport, DisplayStatus);
             addInRootSubmenu.Items.AddActionItem<IEngineeringObject>("Import all scripts to HMI", OnClickImport, DisplayStatus);
         }
 
