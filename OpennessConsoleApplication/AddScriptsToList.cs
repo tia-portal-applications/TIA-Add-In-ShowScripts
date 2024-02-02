@@ -63,14 +63,13 @@ namespace ShowScripts
                                 if (line.Contains("//eslint-disable-next-line camelcase") && getLines == 1)
                                 {
                                     getLines = 0;
-                                    scriptLines.Remove("");
-                                    scriptLines.Remove("//eslint-disable-next-line camelcase");
                                     break;
                                 }
                             }
                             getLines = 0;
-                            scriptLines.RemoveAt(0); // remove the first line, because it is the header line
-                            scriptLines.RemoveAt(scriptLines.Count-1); // remove the last line, because it is the closing bracket }
+                            scriptLines.RemoveAt(0); // remove the first line, because it is the header line (function header)
+                            int lastBracketIndex = scriptLines.FindLastIndex(x => x == "}");
+                            scriptLines.RemoveRange(lastBracketIndex, scriptLines.Count - lastBracketIndex); // remove the last closing bracket }
                             string setScript = string.Join(Environment.NewLine, scriptLines);
                             script.SetAttribute("ScriptCode", setScript);
                         }
