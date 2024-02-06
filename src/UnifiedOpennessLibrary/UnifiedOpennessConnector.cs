@@ -23,7 +23,7 @@ namespace UnifiedOpennessLibrary
     }
     public class UnifiedOpennessConnector : IDisposable
     {
-        public Dictionary<string, string> CmdArgs { get; private set; } = new Dictionary<string, string>();
+        public Dictionary<string, string> CmdArgs { get; private set; } = new Dictionary<string, string>() { { "ShowUI", "yes" }, { "ClosingOnExit", "no" } };
 
         private string TiaPortalVersion { get; set; }
         public string FileDirectory { get; private set; }
@@ -50,36 +50,43 @@ namespace UnifiedOpennessLibrary
         }
         void Work(string toolName)
         {
-            var processes = TiaPortal.GetProcesses();
-            if (processes.Count > 0)
+            if (CmdArgs.ContainsKey("ProjectPath"))
             {
-                try
-                {
-                    if (!CmdArgs.ContainsKey("ProcessId") || CmdArgs["ProcessId"] == "")  // just take the first opened TIA Portal, if it is not specified
-                    {
-                        TiaPortal = processes.First().Attach();
-                    }
-                    else
-                    {
-                        TiaPortal = processes.First(x => x.Id == int.Parse(CmdArgs["ProcessId"])).Attach();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex);
-                }
+                TiaPortal = new TiaPortal(CmdArgs["ShowUI"] == "yes" ? TiaPortalMode.WithUserInterface : TiaPortalMode.WithoutUserInterface);
+                TiaPortalProject = TiaPortal.Projects.Open(new FileInfo(CmdArgs["ProjectPath"]));
             }
             else
             {
-                throw new Exception("No TIA Portal instance is open. Please open TIA Portal with your project.");
+                var processes = TiaPortal.GetProcesses();
+                if (processes.Count > 0)
+                {
+                    try
+                    {
+                        if (!CmdArgs.ContainsKey("ProcessId") || CmdArgs["ProcessId"] == "")  // just take the first opened TIA Portal, if it is not specified
+                        {
+                            TiaPortal = processes.First().Attach();
+                        }
+                        else
+                        {
+                            TiaPortal = processes.First(x => x.Id == int.Parse(CmdArgs["ProcessId"])).Attach();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex);
+                    }
+                }
+                else
+                {
+                    throw new Exception("No TIA Portal instance is open. Please open TIA Portal with your project.");
+                }
+                TiaPortalProject = TiaPortal.Projects.FirstOrDefault();
             }
-
-            AccessObject = TiaPortal.ExclusiveAccess(toolName + " tool running.\nBe careful: Cancelling this request will not cancel the tool. Please close the Command line to avoid any changes.");
-            TiaPortalProject = TiaPortal.Projects.FirstOrDefault();
             if (TiaPortalProject == null)
             {
                 throw new Exception("Please check, if the search is working in TIA Portal and install missing GSD files if not. Then run this tool again.");
             }
+            AccessObject = TiaPortal.ExclusiveAccess(toolName + " tool running.\nBe careful: Cancelling this request will not cancel the tool. Please close the Command line to avoid any changes.");
             FileDirectory = TiaPortalProject.Path.DirectoryName + "\\UserFiles\\" + DeviceName + "\\" + toolName + "\\";
             SetHmiByDeviceName();
         }
@@ -153,6 +160,11 @@ namespace UnifiedOpennessLibrary
 
         public void Dispose()
         {
+            if (CmdArgs["ClosingOnExit"] == "yes")
+            {
+                TiaPortalProject?.Save();
+                TiaPortalProject?.Close();
+            }
             AccessObject?.Dispose();
             TiaPortal?.Dispose();
         }
@@ -232,9 +244,12 @@ namespace UnifiedOpennessLibrary
         private void ParseArguments(List<string> args, string toolname, IEnumerable<CmdArgument> additionalParameters)
         {
             var argConfiguration = new List<CmdArgument>() {
-                new CmdArgument() { OptionToSet = "ProcessId", OptionShort = "-p", OptionLong = "--processid", HelpText = "define a process id the tool connects to. If empty, the first TIA Portal process will be connected to" } ,
+                new CmdArgument() { OptionToSet = "ProcessId", OptionShort = "-id", OptionLong = "--processid", HelpText = "define a process id the tool connects to. If empty, the first TIA Portal process will be connected to" } ,
                 new CmdArgument() { OptionToSet = "Include", OptionShort = "-i", OptionLong = "--include", HelpText = "add a list of screen names on which the tool will work on, split by semicolon (cannot be combined with --exclude), e.g. \"Screen_1;My screen 2\"" } ,
-                new CmdArgument() { OptionToSet = "Exclude", OptionShort = "-e", OptionLong = "--exclude", HelpText = "add a list of screen names on which the tool will not work on, split by semicolon (cannot be combined with --include), e.g. \"Screen_1;My screen 2\"" }
+                new CmdArgument() { OptionToSet = "Exclude", OptionShort = "-e", OptionLong = "--exclude", HelpText = "add a list of screen names on which the tool will not work on, split by semicolon (cannot be combined with --include), e.g. \"Screen_1;My screen 2\"" },
+                new CmdArgument() { OptionToSet = "ProjectPath", OptionShort = "-p", OptionLong = "--projectpath", HelpText = @"if you have no TIA Portal opened, the tool can open it for you and open the project from this path (ProcessId will be ignored, if this is set), e.g. D:\projects\Project1\Project1.ap18" },
+                new CmdArgument() { OptionToSet = "ShowUI", OptionShort = "-ui", OptionLong = "--showui", HelpText = "if you provided a ProjectPath via -p you may decide, if TIA Portal should be opened with GUI or without, e.g. \"yes\" or \"no\". Default is yes." },
+                new CmdArgument() { OptionToSet = "ClosingOnExit", OptionShort = "-c", OptionLong = "--closeonexit", HelpText = "you may decide, if the TIA Portal should be saved and closed when this tool is finished, e.g. \"yes\" or \"no\". Default is no." }
             };
             if (args.Count == 0)
             {
