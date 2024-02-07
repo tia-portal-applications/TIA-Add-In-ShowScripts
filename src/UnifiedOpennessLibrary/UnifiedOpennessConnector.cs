@@ -4,7 +4,6 @@ using Siemens.Engineering.HW.Features;
 using Siemens.Engineering.HW;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -16,14 +15,38 @@ namespace UnifiedOpennessLibrary
 {
     public class CmdArgument
     {
+        /// <summary>
+        /// This is how you may access the option afterwards in your code, e.g. if you set it to "MyOption" you may access via CmdArgs["MyOption"]
+        /// </summary>
         public string OptionToSet = "";
+        /// <summary>
+        /// this is how the user can define this option by a shortcut. Recommended is to use one dash as prefix, like this: -m
+        /// </summary>
         public string OptionShort = "";
+        /// <summary>
+        /// this is how the user can define this option by a long name. Recommended is to use two dashes as prefix, like this: --myoption
+        /// </summary>
         public string OptionLong = "";
+        /// <summary>
+        /// the help text for your option will be shown, if the user forgets to add a required option or if he types -h or --help
+        /// </summary>
         public string HelpText = "";
+        /// <summary>
+        /// the default value of your option, e.g. "yes"
+        /// </summary>
+        public string Default = "";
+        /// <summary>
+        /// define if your option is required or not. If it is required, the tool will stop, if the user does not add this option. Default: false.
+        /// </summary>
+        public bool Required = false;
+        /// <summary>
+        /// internal bool to check, if this option was already set by the user or not and then to check, if all required options are set
+        /// </summary>
+        internal bool IsParsed = false;
     }
     public class UnifiedOpennessConnector : IDisposable
     {
-        public Dictionary<string, string> CmdArgs { get; private set; } = new Dictionary<string, string>() { { "ShowUI", "yes" }, { "ClosingOnExit", "no" } };
+        public Dictionary<string, string> CmdArgs { get; private set; } = new Dictionary<string, string>();
 
         private string TiaPortalVersion { get; set; }
         public string FileDirectory { get; private set; }
@@ -40,7 +63,14 @@ namespace UnifiedOpennessLibrary
         /// <param name="tiaPortalVersion">e.g. V18 or V19. It must be the part of the path in the installation folder</param>
         /// <param name="args">just pass the arguments that you got from the command line here. You may have access via the public member "CmdArgs" to your arguments afterwards</param>
         /// <param name="toolName">define the name of the tool (exe), so help text and the waiting text is more beautiful</param>
-        /// <param name="additionalHelpText">if your tool needs additional help text, it can be added here</param>
+        /// <param name="additionalParameters"> The following parameters are already there, so be careful with the short option of new parameters
+        /// new CmdArgument() { Default = "", OptionToSet = "ProcessId", OptionShort = "-id", OptionLong = "--processid", HelpText = "define a process id the tool connects to. If empty, the first TIA Portal process will be connected to" } ,
+        /// new CmdArgument() { Default = "", OptionToSet = "Include", OptionShort = "-i", OptionLong = "--include", HelpText = "add a list of screen names on which the tool will work on, split by semicolon (cannot be combined with --exclude), e.g. \"Screen_1;My screen 2\"" } ,
+        /// new CmdArgument() { Default = "", OptionToSet = "Exclude", OptionShort = "-e", OptionLong = "--exclude", HelpText = "add a list of screen names on which the tool will not work on, split by semicolon (cannot be combined with --include), e.g. \"Screen_1;My screen 2\"" },
+        /// new CmdArgument() { Default = "", OptionToSet = "ProjectPath", OptionShort = "-p", OptionLong = "--projectpath", HelpText = @"if you have no TIA Portal opened, the tool can open it for you and open the project from this path (ProcessId will be ignored, if this is set), e.g. D:\projects\Project1\Project1.ap18" },
+        /// new CmdArgument() { Default = "yes", OptionToSet = "ShowUI", OptionShort = "-ui", OptionLong = "--showui", HelpText = "if you provided a ProjectPath via -p you may decide, if TIA Portal should be opened with GUI or without, e.g. \"yes\" or \"no\"" },
+        /// new CmdArgument() { Default = "no", OptionToSet = "ClosingOnExit", OptionShort = "-c", OptionLong = "--closeonexit", HelpText = "you may decide, if the TIA Portal should be saved and closed when this tool is finished, e.g. \"yes\" or \"no\"" }
+        /// </param>
         public UnifiedOpennessConnector(string tiaPortalVersion, string[] args, IEnumerable<CmdArgument> additionalParameters, string toolName = "MyTool")
         {
             TiaPortalVersion = tiaPortalVersion;
@@ -50,7 +80,7 @@ namespace UnifiedOpennessLibrary
         }
         void Work(string toolName)
         {
-            if (CmdArgs.ContainsKey("ProjectPath"))
+            if (!string.IsNullOrWhiteSpace(CmdArgs["ProjectPath"]))
             {
                 TiaPortal = new TiaPortal(CmdArgs["ShowUI"] == "yes" ? TiaPortalMode.WithUserInterface : TiaPortalMode.WithoutUserInterface);
                 TiaPortalProject = TiaPortal.Projects.Open(new FileInfo(CmdArgs["ProjectPath"]));
@@ -62,7 +92,7 @@ namespace UnifiedOpennessLibrary
                 {
                     try
                     {
-                        if (!CmdArgs.ContainsKey("ProcessId") || CmdArgs["ProcessId"] == "")  // just take the first opened TIA Portal, if it is not specified
+                        if (CmdArgs["ProcessId"] == "")  // just take the first opened TIA Portal, if it is not specified
                         {
                             TiaPortal = processes.First().Attach();
                         }
@@ -100,12 +130,12 @@ namespace UnifiedOpennessLibrary
                 throw new Exception("Device with name " + DeviceName + " cannot be found. Please check, if the search is working in TIA Portal and install missing GSD files if not. Then run this tool again.");
             }
             Screens = GetScreens();
-            if (CmdArgs.ContainsKey("Include"))
+            if (!string.IsNullOrWhiteSpace(CmdArgs["Include"]))
             {
                 var screenNames = CmdArgs["Include"].Split(';').Where(x => !string.IsNullOrWhiteSpace(x));
                 Screens = Screens.Where(x => screenNames.Contains(x.Name));
             }
-            else if (CmdArgs.ContainsKey("Exclude"))
+            else if (!string.IsNullOrWhiteSpace(CmdArgs["Exclude"]))
             {
                 var screenNames = CmdArgs["Exclude"].Split(';').Where(x => !string.IsNullOrWhiteSpace(x));
                 Screens = Screens.Where(x => !screenNames.Contains(x.Name));
@@ -244,12 +274,12 @@ namespace UnifiedOpennessLibrary
         private void ParseArguments(List<string> args, string toolname, IEnumerable<CmdArgument> additionalParameters)
         {
             var argConfiguration = new List<CmdArgument>() {
-                new CmdArgument() { OptionToSet = "ProcessId", OptionShort = "-id", OptionLong = "--processid", HelpText = "define a process id the tool connects to. If empty, the first TIA Portal process will be connected to" } ,
-                new CmdArgument() { OptionToSet = "Include", OptionShort = "-i", OptionLong = "--include", HelpText = "add a list of screen names on which the tool will work on, split by semicolon (cannot be combined with --exclude), e.g. \"Screen_1;My screen 2\"" } ,
-                new CmdArgument() { OptionToSet = "Exclude", OptionShort = "-e", OptionLong = "--exclude", HelpText = "add a list of screen names on which the tool will not work on, split by semicolon (cannot be combined with --include), e.g. \"Screen_1;My screen 2\"" },
-                new CmdArgument() { OptionToSet = "ProjectPath", OptionShort = "-p", OptionLong = "--projectpath", HelpText = @"if you have no TIA Portal opened, the tool can open it for you and open the project from this path (ProcessId will be ignored, if this is set), e.g. D:\projects\Project1\Project1.ap18" },
-                new CmdArgument() { OptionToSet = "ShowUI", OptionShort = "-ui", OptionLong = "--showui", HelpText = "if you provided a ProjectPath via -p you may decide, if TIA Portal should be opened with GUI or without, e.g. \"yes\" or \"no\". Default is yes." },
-                new CmdArgument() { OptionToSet = "ClosingOnExit", OptionShort = "-c", OptionLong = "--closeonexit", HelpText = "you may decide, if the TIA Portal should be saved and closed when this tool is finished, e.g. \"yes\" or \"no\". Default is no." }
+                new CmdArgument() { Default = "", OptionToSet = "ProcessId", OptionShort = "-id", OptionLong = "--processid", HelpText = "define a process id the tool connects to. If empty, the first TIA Portal process will be connected to" } ,
+                new CmdArgument() { Default = "", OptionToSet = "Include", OptionShort = "-i", OptionLong = "--include", HelpText = "add a list of screen names on which the tool will work on, split by semicolon (cannot be combined with --exclude), e.g. \"Screen_1;My screen 2\"" } ,
+                new CmdArgument() { Default = "", OptionToSet = "Exclude", OptionShort = "-e", OptionLong = "--exclude", HelpText = "add a list of screen names on which the tool will not work on, split by semicolon (cannot be combined with --include), e.g. \"Screen_1;My screen 2\"" },
+                new CmdArgument() { Default = "", OptionToSet = "ProjectPath", OptionShort = "-p", OptionLong = "--projectpath", HelpText = @"if you have no TIA Portal opened, the tool can open it for you and open the project from this path (ProcessId will be ignored, if this is set), e.g. D:\projects\Project1\Project1.ap18" },
+                new CmdArgument() { Default = "yes", OptionToSet = "ShowUI", OptionShort = "-ui", OptionLong = "--showui", HelpText = "if you provided a ProjectPath via -p you may decide, if TIA Portal should be opened with GUI or without, e.g. \"yes\" or \"no\"" },
+                new CmdArgument() { Default = "no", OptionToSet = "ClosingOnExit", OptionShort = "-c", OptionLong = "--closeonexit", HelpText = "you may decide, if the TIA Portal should be saved and closed when this tool is finished, e.g. \"yes\" or \"no\"" }
             };
             if (args.Count == 0)
             {
@@ -267,15 +297,30 @@ namespace UnifiedOpennessLibrary
             {
                 argConfiguration.AddRange(additionalParameters);
             }
+            // set default values
+            foreach (var cmdArg in argConfiguration)
+            {
+                CmdArgs[cmdArg.OptionToSet] = cmdArg.Default;
+            }
+            // set values from command line
             foreach (var arg in args)
             {
                 foreach (var cmdArg in argConfiguration)
                 {
-                    SetParameter(arg, cmdArg);
+                    if (SetParameter(arg, cmdArg))
+                    {
+                        break; // if setting the parameter successfully, go to the next one
+                    }
                 }
             }
+            var notSetRequiredArgs = argConfiguration.Where(x => x.Required && !x.IsParsed).Select(x => x.OptionToSet);
+            if (notSetRequiredArgs.Count() > 0)
+            {
+                DisplayHelp(argConfiguration, toolname);
+                throw new Exception("The following arguments must be set, but were not set via command line: " + string.Join(",", notSetRequiredArgs));
+            }
         }
-        private void SetParameter(string arg, CmdArgument cmdArg)
+        private bool SetParameter(string arg, CmdArgument cmdArg)
         {
             if ((cmdArg.OptionShort != "" && arg.ToLower().StartsWith(cmdArg.OptionShort)) || (cmdArg.OptionLong != "" && arg.ToLower().StartsWith(cmdArg.OptionLong)))
             {
@@ -284,8 +329,11 @@ namespace UnifiedOpennessLibrary
                 {
                     parts.RemoveAt(0);
                     CmdArgs[cmdArg.OptionToSet] = string.Join("=", parts).Trim('"');
+                    cmdArg.IsParsed = true;
+                    return true;
                 }
             }
+            return false;
         }
         static void DisplayHelp(List<CmdArgument> argConfiguration, string toolName)
         {
@@ -298,7 +346,7 @@ Options:
 ";
             foreach (var argConfig in argConfiguration)
             {
-                helpText += argConfig.OptionShort + "\t" + argConfig.OptionLong + "\t\t\t\t" + argConfig.HelpText + "\n";
+                helpText += argConfig.OptionShort + "\t" + argConfig.OptionLong + "\t\t\t" + argConfig.HelpText + "\n\t\t\t\t\t\t(default: " + argConfig.Default + ") IsReqired: " + argConfig.Required + "\n";
             }
             Console.WriteLine(helpText);
         }
