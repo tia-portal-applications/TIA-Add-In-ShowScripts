@@ -31,9 +31,12 @@ namespace ShowScripts
         List<string> childScreens;
         int check = 0;
         string delimiter = ";";
+        string importLogPath = "";
 
         public void ImportScripts(IEnumerable<HmiScreen> screens, string fileDirectory)
         {
+            importLogPath = fileDirectory + "LogImportScripts.csv";
+            File.WriteAllText(importLogPath, string.Format("screen name{0}screen item{0}property name{0}event name{0}", delimiter));
             FileInfo[] Files = new DirectoryInfo(fileDirectory).GetFiles("*.js");
             foreach (HmiScreen screen in screens)
             {
@@ -47,12 +50,12 @@ namespace ShowScripts
                         {
                             var script = eveHandler.GetAttribute("Script") as ScriptDynamization;
                             string eveType = eveHandler.GetAttribute("EventType").ToString();
-                            SetScriptFromFile(script, lines, eveType, screen.Name);
+                            SetScriptFromFile(script, screen.Name, lines, eveType, screen.Name);
                         }
                         foreach (PropertyEventHandler evePropHandler in screen.PropertyEventHandlers)
                         {
                             var script = evePropHandler.GetAttribute("Script") as ScriptDynamization;
-                            SetScriptFromFile(script, lines, "OnPropertyChanged", screen.Name, evePropHandler.PropertyName);
+                            SetScriptFromFile(script, screen.Name, lines, "OnPropertyChanged", screen.Name, evePropHandler.PropertyName);
                         }
                         HmiScreenItemBaseComposition items = screen.ScreenItems;
                         foreach (HmiScreenItemBase item in items)
@@ -60,13 +63,13 @@ namespace ShowScripts
                             foreach (PropertyEventHandler evePropHandlerItem in item.PropertyEventHandlers)
                             {
                                 var script = evePropHandlerItem.GetAttribute("Script") as ScriptDynamization;
-                                SetScriptFromFile(script, lines, "OnPropertyChanged", item.Name, evePropHandlerItem.PropertyName);
+                                SetScriptFromFile(script, screen.Name, lines, "OnPropertyChanged", item.Name, evePropHandlerItem.PropertyName);
                             }
                             foreach (IEngineeringObject eveHandItem in (item as IEngineeringObject).GetComposition("EventHandlers") as IEngineeringComposition)
                             {
                                 var script = eveHandItem.GetAttribute("Script") as ScriptDynamization;
                                 string eveType = eveHandItem.GetAttribute("EventType").ToString();
-                                SetScriptFromFile(script, lines, eveType, item.Name);
+                                SetScriptFromFile(script, screen.Name, lines, eveType, item.Name);
                             }
                         }
 
@@ -77,14 +80,14 @@ namespace ShowScripts
                         string[] lines = System.IO.File.ReadAllLines(tempPath);
                         foreach (DynamizationBase dynamizationScreen in screen.Dynamizations)
                         {
-                            SetScriptFromFile(dynamizationScreen as IHmiScript, lines, "Trigger", screen.Name, dynamizationScreen.PropertyName);
+                            SetScriptFromFile(dynamizationScreen as IHmiScript, screen.Name, lines, "Trigger", screen.Name, dynamizationScreen.PropertyName);
                         }
                         HmiScreenItemBaseComposition items = screen.ScreenItems;
                         foreach (HmiScreenItemBase item in items)
                         {
                             foreach (DynamizationBase dynamizationItem in item.Dynamizations.Where(x => x.DynamizationType == DynamizationType.Script))
                             {
-                                SetScriptFromFile(dynamizationItem as IHmiScript, lines, "Trigger", item.Name, dynamizationItem.PropertyName);
+                                SetScriptFromFile(dynamizationItem as IHmiScript, screen.Name, lines, "Trigger", item.Name, dynamizationItem.PropertyName);
                             }
                         }
                     }
@@ -92,7 +95,7 @@ namespace ShowScripts
             }
         }
 
-        private void SetScriptFromFile(IHmiScript script, string[] lines, string eventName, string itemName, string propertyName = "")
+        private void SetScriptFromFile(IHmiScript script, string screenName, string[] lines, string eventName, string itemName, string propertyName = "")
         {
             string functionName = "function _" + itemName.Replace(" ", "_") + (propertyName == "" ? "" : "_" + propertyName) + "_" + eventName + "(";
             bool getLines = false;
@@ -129,6 +132,7 @@ namespace ShowScripts
             if (script.ScriptCode.Trim() != newScriptCode.Trim())
             {
                 script.ScriptCode = newScriptCode;
+                File.AppendAllText(importLogPath, screenName + delimiter + itemName + delimiter + propertyName + delimiter + eventName + "\n");
             }
             else
             {
