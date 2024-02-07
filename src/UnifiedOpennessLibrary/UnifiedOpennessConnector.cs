@@ -117,7 +117,11 @@ namespace UnifiedOpennessLibrary
                 throw new Exception("Please check, if the search is working in TIA Portal and install missing GSD files if not. Then run this tool again.");
             }
             AccessObject = TiaPortal.ExclusiveAccess(toolName + " tool running.\nBe careful: Cancelling this request will not cancel the tool. Please close the Command line to avoid any changes.");
-            FileDirectory = TiaPortalProject.Path.DirectoryName + "\\UserFiles\\" + DeviceName + "\\" + toolName + "\\";
+            FileDirectory = TiaPortalProject.Path.DirectoryName + "\\UserFiles\\" + DeviceName + "_" + toolName + "\\";
+            if (!Directory.Exists(FileDirectory))
+            {
+                Directory.CreateDirectory(FileDirectory);
+            }
             SetHmiByDeviceName();
         }
 
