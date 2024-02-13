@@ -23,7 +23,7 @@ namespace ShowScripts
 #if DEBUG
             Debugger.Launch();
 #endif
-            cmdArgs = ParseArguments(args); // e.g. export -t "PC-System_1" -P "8876" -A "C:\Program Files\Siemens\Automation\Portal V19\bin\Siemens.Automation.Portal.exe"
+            cmdArgs = ParseArguments(args); // e.g. export -t "PC-System_1" -P "8876" -A "C:\Program Files\Siemens\Automation\Portal V18\bin\Siemens.Automation.Portal.exe"
             AppDomain.CurrentDomain.AssemblyResolve += AssemblyResolver;
             if (cmdArgs.ContainsKey("-t"))
             {
@@ -232,7 +232,7 @@ namespace ShowScripts
             if (index != -1)
             {
                 string name = args.Name.Substring(0, index);
-                string path = cmdArgs.ContainsKey("-A") ? cmdArgs["-A"] : "C:\\Program Files\\Siemens\\Automation\\Portal V19\\bin\\Siemens.Automation.Portal.exe";
+                string path = cmdArgs.ContainsKey("-A") ? cmdArgs["-A"] : "C:\\Program Files\\Siemens\\Automation\\Portal V18\\bin\\Siemens.Automation.Portal.exe";
                 if (path != null & path != string.Empty)
                 {
                     if (name == "Siemens.Engineering")
@@ -240,7 +240,7 @@ namespace ShowScripts
                         try
                         {
                             FileInfo exeFileInfo = new FileInfo(path);
-                            dllPathToTry = exeFileInfo.Directory + @"\..\PublicAPI\V19\Siemens.Engineering.dll";
+                            dllPathToTry = exeFileInfo.Directory + @"\..\PublicAPI\V18\Siemens.Engineering.dll";
                         }
                         catch (System.NullReferenceException e)
                         {
@@ -256,7 +256,7 @@ namespace ShowScripts
                         try
                         {
                             FileInfo exeFileInfo = new FileInfo(path);
-                            dllPathToTry = exeFileInfo.Directory + @"\..\PublicAPI\V19\Siemens.Engineering.Hmi.dll";
+                            dllPathToTry = exeFileInfo.Directory + @"\..\PublicAPI\V18\Siemens.Engineering.Hmi.dll";
                         }
                         catch (System.NullReferenceException e)
                         {
