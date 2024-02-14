@@ -15,6 +15,7 @@ using Siemens.Engineering.HmiUnified.UI.Events;
 using System.IO;
 using System.Windows.Forms;
 using Siemens.Engineering.HmiUnified.UI.Widgets;
+using Siemens.Engineering.HmiUnified.UI.Shapes;
 
 namespace ShowScripts
 {
@@ -146,7 +147,7 @@ namespace ShowScripts
         /// <param name="screenName">Case ignored, e.g. *, Screen_*</param>
         /// <param name="whereCondition">e.g. Dynamization.Trigger.Type=250</param>
         /// <param name="sets">e.g. Dynamization.Trigger.Type=4, Dynamization.Trigger.Tags='Refresh_tag'</param>
-        public void ExportScripts(IEnumerable<HmiScreen> screens, string fileDirectory, string screenName, string deviceName, bool overwrite, bool silent, bool deepSearch = false)
+        public void ExportScripts(IEnumerable<HmiScreen> screens, string fileDirectory, string screenName, string deviceName, bool overwrite, bool silent, bool deepSearch = false, bool versionLeadsToTextCrash = false)
         {
             string whereCondition = "";
             string sets = "";
@@ -190,35 +191,25 @@ namespace ShowScripts
             {
                 screenName = _screenName;
             }
-            string pathTextboxesWithoutText = fileDirectory + "TextboxesWithoutText.csv";
-            using (StreamWriter sw = File.CreateText(pathTextboxesWithoutText))
+
+            using (StreamWriter sw = File.CreateText(fileDirectory + "TextboxesWithoutText.csv"))
             {
                 sw.WriteLine(string.Format("Screen{0}Object", delimiter));
             }
-            string pathScreenItemsOutOfRange = fileDirectory + "ScreenItemsOutOfRange.csv";
-            using (StreamWriter sw = File.CreateText(pathScreenItemsOutOfRange))
+            using (StreamWriter sw = File.CreateText(fileDirectory + "ScreenItemsOutOfRange.csv"))
             {
                 sw.WriteLine(string.Format("Screen{0}Object", delimiter));
             }
-            string pathCyclicTrigger = fileDirectory + "CyclicTrigger.csv";
-            using (StreamWriter sw = new StreamWriter(pathCyclicTrigger))
+            using (StreamWriter sw = new StreamWriter(fileDirectory + "CyclicTrigger.csv"))
             {
                 sw.WriteLine(string.Format("Screen{0}Object{0}Event/Dynamization{0}Cyclic trigger", delimiter));
             }
-            Dictionary<string, List<string>> tagSetUsages = new Dictionary<string, List<string>>()
-                {
-                    { ".SetTagValue(", new List<string>() },
-                    { ".Read(", new List<string>() },
-                    { ".Write(", new List<string>() }
-                };
-            string pathTagSetUsages = fileDirectory + "TagSetUsages.csv";
-            using (StreamWriter sw = new StreamWriter(pathTagSetUsages))
+            using (StreamWriter sw = new StreamWriter(fileDirectory + "TagSetUsages.csv"))
             {
-                sw.WriteLine(string.Format("Screen{0}Object{0}Event/Dynamization{0}" + string.Join(delimiter, tagSetUsages.Keys.Select(x => x.Trim(new[] { '.', '(' }))), delimiter));
+                sw.WriteLine(string.Format("Screen{0}Object{0}Event/Dynamization", delimiter));
             }
 
-            csvStringP.Add(string.Format("Screen name{0}Item count{0}Cycles{0}Disabled{0}Tags-Dyn-Scripts{0}Tags-Dyn{0} Total Number of Tags{0}Resource list{0}Events{0}Child screens{0}ScreenItemsOutOfRange{0}TextBoxesWithoutText{0}" + 
-                string.Join(delimiter, tagSetUsages.Keys.Select(x => "TagSet_" + x.Trim(new[] { '.', '('}))), delimiter));
+            csvStringP.Add(string.Format("Screen name{0}Item count{0}Cycles{0}Disabled{0}Tags-Dyn-Scripts{0}Tags-Dyn{0} Total Number of Tags{0}Resource list{0}Events{0}Child screens{0}ScreenItemsOutOfRange{0}TextBoxesWithoutText{0}UseTagSet", delimiter));
 
             countScreenItems = new Dictionary<string, int>()
                 {
@@ -244,6 +235,7 @@ namespace ShowScripts
                     { "HmiListBox", 0 },
                     { "HmiClock", 0 },
                     { "HmiTextBox", 0 },
+                    { "HmiText", 0 },
                     { "HmiLine", 0 },
                     { "HmiPolyline", 0 },
                     { "HmiPolygon", 0 },
@@ -317,11 +309,7 @@ namespace ShowScripts
                 var screenItemsOutOfRange = new List<string>();
                 var cycles = new List<string>();
                 var countTextboxesWithoutText = new List<string>();
-                // reinit tag set usages
-                foreach (var key in tagSetUsages.Keys)
-                {
-                    tagSetUsages[key].Clear();
-                }
+                IEnumerable<string> tagSetUsages = new List<string>();
 
                 foreach (var key in countScreenItems.Keys.ToList())
                 {
@@ -334,20 +322,20 @@ namespace ShowScripts
                 }
 
                 // calculations
-                var screenDynsPropEves = GetAllMyAttributesDynPropEves(screen, deepSearch, whereCondition.Split(',').ToList(), sets.Split(',').ToList(), tagSetUsages, ref cycles);
+                var screenDynsPropEves = GetAllMyAttributesDynPropEves(screen, deepSearch, whereCondition.Split(',').ToList(), sets.Split(',').ToList(), ref tagSetUsages, ref cycles);
                 var screenDyns = screenDynsPropEves[0];
                 var screenPropEves = screenDynsPropEves[1];
-                var screenEves = GetAllMyAttributesEve(screen, whereCondition.Split(',').ToList(), sets.Split(',').ToList(), tagSetUsages, ref cycles);
+                var screenEves = GetAllMyAttributesEve(screen, whereCondition.Split(',').ToList(), sets.Split(',').ToList(), ref tagSetUsages, ref cycles);
                 uint screenWidth = screen.Width;
                 uint screenHeight = screen.Height;
 
                 foreach (var screenitem in screen.ScreenItems)
                 {
                     Console.Write('.');  // the user wants to see that something happens, so a dot will be printed for every screenitem
-                    var screenitemDynsPropEves = GetAllMyAttributesDynPropEves(screenitem, deepSearch, whereCondition.Split(',').ToList(), sets.Split(',').ToList(), tagSetUsages, ref cycles);
+                    var screenitemDynsPropEves = GetAllMyAttributesDynPropEves(screenitem, deepSearch, whereCondition.Split(',').ToList(), sets.Split(',').ToList(), ref tagSetUsages, ref cycles);
                     var screenitemDyns = screenitemDynsPropEves[0];
                     var screenitemPropEves = screenitemDynsPropEves[1];
-                    var screenitemEves = GetAllMyAttributesEve(screenitem, whereCondition.Split(',').ToList(), sets.Split(',').ToList(), tagSetUsages, ref cycles);
+                    var screenitemEves = GetAllMyAttributesEve(screenitem, whereCondition.Split(',').ToList(), sets.Split(',').ToList(), ref tagSetUsages, ref cycles);
 
                     screenItemEvents = screenItemEvents.Concat(screenitemEves).ToList().Concat(screenitemPropEves).ToList();
 
@@ -387,9 +375,10 @@ namespace ShowScripts
                             screenItemsOutOfRange.Add(screenitem.Name);
                         }
                     }
-                    if (screenitem is HmiTextBox)
+                    if (!versionLeadsToTextCrash && (screenitem is HmiTextBox || screenitem is HmiText))
                     {
-                        foreach (var item in (screenitem as HmiTextBox).Text.Items)  // check if there is any text of any language that is empty (default texts are usually "Text", so not all textboxes will be catched, if we try to check, if all texts are empty. So we now check, if any text is empty
+                        bool textboxWithoutText = true;
+                        foreach (var item in (screenitem.GetAttribute("Text") as MultilingualText).Items)  // check if there is any character inside any text of any language
                         {
                             if (string.IsNullOrWhiteSpace(item.Text.Replace("<body><p>", "").Replace("</p></body>", "")))
                             {
@@ -455,8 +444,7 @@ namespace ShowScripts
                 csvStringP.Add(string.Format(screen.Name + "{0}" + screen.ScreenItems.Count + "{0}" + (countDynTriggers["T100ms"] + countDynTriggers["T250ms"] + countDynTriggers["T500ms"] +
                     countDynTriggers["T1s"] + countDynTriggers["T2s"] + countDynTriggers["T5s"] + countDynTriggers["T10s"] + countDynTriggers["OtherCycles"]) + "{0}" +
                     countDynTriggers["Disabled"] + "{0}" + countDynTriggers["Tags"] + "{0}" + countDynTriggers["TagDynamizations"] + "{0}" + tagNames.Count() + "{0}" + countDynTriggers["ResourceLists"] + "{0}" +
-                    eventListCount + "{0}" + string.Join("&", childScreens) + "{0}" + screenItemsOutOfRange.Count + "{0}" + countTextboxesWithoutText.Count + "{0}" + 
-                    string.Join(delimiter, tagSetUsages.Values.Select(x => x.Count)), delimiter));
+                    eventListCount + "{0}" + string.Join("&", childScreens) + "{0}" + screenItemsOutOfRange.Count + "{0}" + countTextboxesWithoutText.Count + "{0}" + tagSetUsages.Count(), delimiter));
 
                 foreach (var entry in countScreenItems)
                 {
@@ -485,7 +473,7 @@ namespace ShowScripts
                 }
                 if (countTextboxesWithoutText.Count() > 0)
                 {
-                    using (StreamWriter sw = new StreamWriter(pathTextboxesWithoutText, true))
+                    using (StreamWriter sw = new StreamWriter(fileDirectory + "TextboxesWithoutText.csv", true))
                     {
                         foreach (var item in countTextboxesWithoutText)
                         {
@@ -493,27 +481,21 @@ namespace ShowScripts
                         }
                     }
                 }
-                using (StreamWriter sw = new StreamWriter(pathScreenItemsOutOfRange, true))
+                using (StreamWriter sw = new StreamWriter(fileDirectory + "ScreenItemsOutOfRange.csv", true))
                 {
                     foreach (var item in screenItemsOutOfRange)
                     {
                         sw.WriteLine(screen.Name + delimiter + item);
                     }
                 }
-                using (StreamWriter sw = new StreamWriter(pathTagSetUsages, true))
+                using (StreamWriter sw = new StreamWriter(fileDirectory + "TagSetUsages.csv", true))
                 {
-                    int j = 0;
-                    foreach (string key in tagSetUsages.Keys)
+                    foreach (var item in tagSetUsages)
                     {
-                        foreach (string item in tagSetUsages[key])
-                        {
-                            // e.g. Screen_1;Loaded;;;1
-                            sw.WriteLine(screen.Name + delimiter + item + delimiter + new string(delimiter[0], j) + 1);
-                        }
-                        j++;
+                        sw.WriteLine(screen.Name + delimiter + item);
                     }
                 }
-                using (StreamWriter sw = new StreamWriter(pathCyclicTrigger, true))
+                using (StreamWriter sw = new StreamWriter(fileDirectory + "CyclicTrigger.csv", true))
                 {
                     foreach (var item in cycles)
                     {
@@ -561,15 +543,49 @@ namespace ShowScripts
                 sw.Write(string.Join(Environment.NewLine, csvStringP));
             }
 
-            // remove empty files for clean up
-            foreach (var filePath in new List<string>() { pathCyclicTrigger, pathScreenItemsOutOfRange, pathTagSetUsages, pathTextboxesWithoutText }
-                .Where(filePath => File.Exists(filePath) && File.ReadAllLines(filePath).Length <= 2)) //2 because header and empty line afterwards
+            //check if files are filled or not and delete if they are not filled
+            int lineCount;
+            using (StreamReader sr = new StreamReader(fileDirectory + "CyclicTrigger.csv"))
             {
-                File.Delete(filePath);
+                lineCount = sr.ReadToEnd().Split('\n').Length;
+            }
+            if (lineCount <= 2) //2 because header and empty line afterwards
+            {
+                File.Delete(fileDirectory + "CyclicTrigger.csv");
+            }
+
+            lineCount = 0;
+            using (StreamReader sr = new StreamReader(fileDirectory + "ScreenItemsOutOfRange.csv"))
+            {
+                lineCount = sr.ReadToEnd().Split('\n').Length;
+            }
+            if (lineCount <= 2)//2 because header and empty line afterwards
+            {
+                File.Delete(fileDirectory + "ScreenItemsOutOfRange.csv");
+            }
+
+            lineCount = 0;
+            using (StreamReader sr = new StreamReader(fileDirectory + "TagSetUsages.csv"))
+            {
+                lineCount = sr.ReadToEnd().Split('\n').Length;
+            }
+            if (lineCount <= 2)//2 because header and empty line afterwards
+            {
+                File.Delete(fileDirectory + "TagSetUsages.csv");
+            }
+
+            lineCount = 0;
+            using (StreamReader sr = new StreamReader(fileDirectory + "TextboxesWithoutText.csv"))
+            {
+                lineCount = sr.ReadToEnd().Split('\n').Length;
+            }
+            if (lineCount <= 2)//2 because header and empty line afterwards
+            {
+                File.Delete(fileDirectory + "TextboxesWithoutText.csv");
             }
         }
 
-        public List<List<string>> GetAllMyAttributesDynPropEves(IEngineeringObject obj, bool deepSearch, List<string> whereConditions, List<string> sets, Dictionary<string, List<string>> tagSetUsage, ref List<string> cycles)
+        public List<List<string>> GetAllMyAttributesDynPropEves(IEngineeringObject obj, bool deepSearch, List<string> whereConditions, List<string> sets, ref IEnumerable<string> tagSetUsage, ref List<string> cycles)
         {
             var tempListDyn = new List<string>();
             var tempListPropEve = new List<string>();
@@ -585,7 +601,7 @@ namespace ShowScripts
                     Console.Write(';');  // the user wants to see that something happens, so a semicolon will be printed for every script
                     tempListDyn.Insert(0, itemsDyn.Value[0]);
                     string script = itemsDyn.Value[1];
-                    SetTagSetUsage(script, objectName + delimiter + itemsDyn.Key, tagSetUsage);
+                    tagSetUsage = tagSetUsage.Concat(GetTagSetUsage(script, objectName + delimiter + itemsDyn.Key));
                     tempListDyn.Insert(1, "function _" + objectName + "_" + itemsDyn.Key + "_Trigger() {" + script + Environment.NewLine + "}");
                 }
 
@@ -594,7 +610,7 @@ namespace ShowScripts
                     Console.Write(';');  // the user wants to see that something happens, so a semicolon will be printed for every script
                     tempListDyn.Add(Environment.NewLine + "//eslint-disable-next-line camelcase");
                     string script = itemsDyn.Value[0];
-                    SetTagSetUsage(script, objectName + delimiter + itemsDyn.Key, tagSetUsage);
+                    tagSetUsage = tagSetUsage.Concat(GetTagSetUsage(script, objectName + delimiter + itemsDyn.Key));
                     tempListDyn.Add("function _" + objectName + "_" + itemsDyn.Key + "_Trigger() {" + script + Environment.NewLine + "}");
                 }
 
@@ -603,7 +619,7 @@ namespace ShowScripts
                     Console.Write(';');  // the user wants to see that something happens, so a semicolon will be printed for every script
                     tempListDyn.Add(Environment.NewLine + "//eslint-disable-next-line camelcase");
                     string script = itemsDyn.Value[0];
-                    SetTagSetUsage(script, itemsDyn.Key, tagSetUsage);
+                    tagSetUsage = tagSetUsage.Concat(GetTagSetUsage(script, itemsDyn.Key));
                     tempListDyn.Add("_" + itemsDyn.Key + "_Trigger() {" + Environment.NewLine + script + Environment.NewLine + "}");
                 }
             }
@@ -615,7 +631,7 @@ namespace ShowScripts
                 {
                     tempListPropEve.Insert(0, itemsPropEve.Value[0]);
                     string script = itemsPropEve.Value[1];
-                    SetTagSetUsage(script, objectName + delimiter + itemsPropEve.Key, tagSetUsage);
+                    tagSetUsage = tagSetUsage.Concat(GetTagSetUsage(script, objectName + delimiter + itemsPropEve.Key));
                     tempListPropEve.Insert(1, Environment.NewLine + "export function _" + objectName + "_" + itemsPropEve.Key + "_OnPropertyChanged() {" + script + Environment.NewLine + "}");
                 }
 
@@ -623,7 +639,7 @@ namespace ShowScripts
                 {
                     tempListPropEve.Add(Environment.NewLine + "//eslint-disable-next-line camelcase");
                     string script = itemsPropEve.Value[0];
-                    SetTagSetUsage(script, objectName + delimiter + itemsPropEve.Key, tagSetUsage);
+                    tagSetUsage = tagSetUsage.Concat(GetTagSetUsage(script, objectName + delimiter + itemsPropEve.Key));
                     tempListPropEve.Add("export function _" + objectName + "_" + itemsPropEve.Key + "_OnPropertyChanged() {" + script + Environment.NewLine + " }");
                 }
 
@@ -631,7 +647,7 @@ namespace ShowScripts
                 {
                     tempListPropEve.Insert(0, itemsPropEve.Value[0]);
                     string script = itemsPropEve.Value[1];
-                    SetTagSetUsage(script, itemsPropEve.Key, tagSetUsage);
+                    tagSetUsage = tagSetUsage.Concat(GetTagSetUsage(script, itemsPropEve.Key));
                     tempListPropEve.Insert(1, "_" + itemsPropEve.Key + "_OnPropertyChanged() {" + script + Environment.NewLine + "}");
                 }
 
@@ -639,7 +655,7 @@ namespace ShowScripts
                 {
                     tempListPropEve.Add(Environment.NewLine + "//eslint-disable-next-line camelcase");
                     string script = itemsPropEve.Value[0];
-                    SetTagSetUsage(script, itemsPropEve.Key, tagSetUsage);
+                    tagSetUsage = tagSetUsage.Concat(GetTagSetUsage(script, itemsPropEve.Key));
                     tempListPropEve.Add("_" + itemsPropEve.Key + "_OnPropertyChanged() {" + script + Environment.NewLine + "}");
                 }
             }
@@ -656,7 +672,7 @@ namespace ShowScripts
                 {
                     if (item.GetType().Name != "MultilingualText")
                     {
-                        var nodeDynPropEve = GetAllMyAttributesDynPropEves(item, deepSearch, whereConditions, sets, tagSetUsage, ref cycles);
+                        var nodeDynPropEve = GetAllMyAttributesDynPropEves(item, deepSearch, whereConditions, sets, ref tagSetUsage, ref cycles);
                         foreach (var dyn in nodeDynPropEve[0])
                         {
                             Console.Write(';');  // the user wants to see that something happens, so a semicolon will be printed for every script
@@ -672,7 +688,7 @@ namespace ShowScripts
                             }
                             else
                             {
-                                SetTagSetUsage(propEve, obj.GetAttribute("Name").ToString(), tagSetUsage);
+                                tagSetUsage = tagSetUsage.Concat(GetTagSetUsage(propEve, obj.GetAttribute("Name").ToString()));
                                 tempListPropEve.Add(propEve);
                                 index++;
                             }
@@ -683,10 +699,11 @@ namespace ShowScripts
             return new List<List<string>>() { tempListDyn, tempListPropEve };
         }
 
-        private void SetTagSetUsage(string script, string eventDynName, Dictionary<string, List<string>> tagSetUsage)
+        private List<string> GetTagSetUsage(string script, string eventDynName)
         {
+            var tagSetUsage = new List<string>();
             var scriptLines = script.Split('\n').Where(x => !string.IsNullOrWhiteSpace(x.Trim()));
-            Dictionary<string, int> keyWordsToTest = tagSetUsage.ToDictionary(x => x.Key, x => 0);
+            var keyWordsToTest = new Dictionary<string, int> { { ".Read(", 0 }, { ".Write(", 0 }, { ".SetTagValue(", 0 } };
             var keys = keyWordsToTest.Keys.ToList();
             foreach (var scriptLine in scriptLines)
             {
@@ -696,14 +713,15 @@ namespace ShowScripts
                         keyWordsToTest[key]++;
                         if (keyWordsToTest[key] >= 2)
                         {
-                            tagSetUsage[key].Add(eventDynName);
+                            tagSetUsage.Add(eventDynName);
                         }
                     }
                 }
             }
+            return tagSetUsage;
         }
 
-        public List<string> GetAllMyAttributesEve(IEngineeringObject obj, List<string> whereConditions, List<string> sets, Dictionary<string, List<string>> tagSetUsage, ref List<string> cycles)
+        public List<string> GetAllMyAttributesEve(IEngineeringObject obj, List<string> whereConditions, List<string> sets, ref IEnumerable<string> tagSetUsage, ref List<string> cycles)
         {
             List<string> tempListEve = new List<string>();
 
@@ -717,7 +735,7 @@ namespace ShowScripts
                     //tempListEve.Add(Environment.NewLine + "//eslint-disable-next-line camelcase");
                     tempListEve.Insert(0, itemsEve.Value[0]);
                     string script = itemsEve.Value[1];
-                    SetTagSetUsage(script, objectName + delimiter + itemsEve.Key, tagSetUsage);
+                    tagSetUsage = tagSetUsage.Concat(GetTagSetUsage(script, objectName + delimiter + itemsEve.Key));
                     tempListEve.Insert(1, Environment.NewLine + "export async function _" + objectName + "_" + itemsEve.Key + "() {" + script + Environment.NewLine + "}");
                 }
 
@@ -726,7 +744,7 @@ namespace ShowScripts
                     Console.Write(';');  // the user wants to see that something happens, so a semicolon will be printed for every script
                     tempListEve.Add(Environment.NewLine + "//eslint-disable-next-line camelcase");
                     string script = itemsEve.Value[0];
-                    SetTagSetUsage(script, objectName + delimiter + itemsEve.Key, tagSetUsage);
+                    tagSetUsage = tagSetUsage.Concat(GetTagSetUsage(script, objectName + delimiter + itemsEve.Key));
                     tempListEve.Add("export async function _" + objectName + "_" + itemsEve.Key + "() {" + script + Environment.NewLine + "}");
                 }
             }
