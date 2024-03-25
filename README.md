@@ -1,69 +1,93 @@
-# TIA Addin ShowScripts
-
-Export all JavaScripts of all screens to a file per screen in your project UserFiles' directory and get an additional Excel overview over all screens.
-
-# Development
-
-Open TestAddin.sln and develop your code in AddScriptsToList.cs
-
-# Deployment
-
-Open ShowScripts.sln, build as release and deliver ShowScripts.addin
-Alternative, build a release of TestAddin.sln to get a console program to automate your workflow
-
-# Installation and usage of TIA Portal Add-Ins
-https://support.industry.siemens.com/cs/ww/de/view/109773999 \
-Please refer to the above link and follow the instructions for installation.
-
-# Run Add-In for WinCC Unified Devices
-Select the device you would like to analyze. \
-Right mouse click and navigate to the "Add-Ins" Chapter. \
-Select "ShowScriptCode" -> "Show all Scripts of HMI" and execute it.
-
-# Screen selection 
-After the function is executed another popup window will appear. \
-(If it is not coming up check the taskbar)\
-In this window you can select to export information about a specific screen by entering the screen name.\
-If no information is hand over all screens will be exported.
-
-# Result 
-The export does require some time. Depending on your project it can take up to 30 Minutes.\
-During the export the TIA Portal cannot be used for further actions. \
-The exported information can be found in the "UserFiles" of the project.\
-E.g. "C:\User\siemens\Documents\Automation\ProjextXX\UserFiles\"
-
-# TestAddin console options
-
-| Option          | Beschreibung |
-:---------------  | :------------
-| \-ALLSCREENS    | all screens of your project will be exported, without that you can specify your screen in a following input prompt |
-| \-C             | closes the TIA Portal project at the end |
-| \-D             | specifies the export directory, if unused the UserFiles directory in the TIA project will be taken, example: \-D C:\\temp\\ |
-| \-H 			  | calls the help, additionally possible by \-? |
-| \-?			  | calls the help, additionally possible by \-H |
-| \-P			  | specifies the TIA project to use, if unused the already opened project will be used, example: \-P D:\\TiaProjects\\Digi.ap17\\ |
-| \-Q			  | closes the TIA Portal instance at the end |
-| \-SET			  | \-SET Dynamization.Trigger.Type=4, Dynamization.Trigger.Tags='Refresh_tag' \-WHERE Dynamization.Trigger.Type=250 |
-| \-U			  | only if no TIA Portal is startet, it starts TIA Portal with user interface |
-| \-UPDATE		  | specifies a single screen, to only export that screen, example: \-U Screen_1 |
-| \-WHERE		  | can be used as a filter |
+# Unified Openness Library
 
 
 
-# Limitations 
-The tool is based on TIA Portal Openness and does have limitations.
-- Scheduled tasks and global module content are **not** accessible
-- Text- und Graphiclists are **not** accessible
-- Only Faceplate-Containers can be checked
-- Library-Handling/MasterCopy-Handling (CopyFrom, CopyTo… whole Unified device only)
-- ScreenItem Properties: Layer
-- Rename Unified RT (Rename PC RT does work)
-- Create integrated connections (only not integrated connections are supported)
+## Getting started
 
-## Limitations with V17
-- Folder / Folder structure of Screens and Tag tables
-- ScreenItems: "My controls"/CustomWebControls, Symbolic IO field, Touch Area and DynamicSVG are **not** supported
+To make it easy for you to get started with GitLab, here's a list of recommended next steps.
 
+Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
 
+## Add your files
 
+- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
+- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
 
+```
+cd existing_repo
+git remote add origin https://code.siemens.com/simatic-systems-support/visualization/tia-openness-apps-addins/unified-openness-library.git
+git branch -M main
+git push -uf origin main
+```
+
+## Integrate with your tools
+
+- [ ] [Set up project integrations](https://code.siemens.com/simatic-systems-support/visualization/tia-openness-apps-addins/unified-openness-library/-/settings/integrations)
+
+## Collaborate with your team
+
+- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
+- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
+- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
+- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
+- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+
+## Test and Deploy
+
+Use the built-in continuous integration in GitLab.
+
+- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
+- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
+- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
+- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
+- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+
+***
+
+# Editing this README
+
+When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+
+## Suggestions for a good README
+
+Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+
+## Name
+Choose a self-explaining name for your project.
+
+## Description
+Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+
+## Badges
+On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+
+## Visuals
+Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+
+## Installation
+Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+
+## Usage
+Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+
+## Support
+Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+
+## Roadmap
+If you have ideas for releases in the future, it is a good idea to list them in the README.
+
+## Contributing
+State if you are open to contributions and what your requirements are for accepting them.
+
+For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+
+You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+
+## Authors and acknowledgment
+Show your appreciation to those who have contributed to the project.
+
+## License
+For open source projects, say how it is licensed.
+
+## Project status
+If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
