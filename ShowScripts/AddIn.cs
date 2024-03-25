@@ -9,13 +9,14 @@ using System.Linq;
 using System.IO;
 using Siemens.Engineering.HmiUnified.UI.ScreenGroup;
 using System.Diagnostics;
+using System;
+using System.Windows.Forms;
 
 namespace ShowScripts
 {
     public class AddIn : ContextMenuAddIn //Enthält eigentliche Funktionalität des AddIns
     {
         private readonly TiaPortal _tiaPortal;
-        private readonly string exeName = "ShowScripts.OpennessExe.ShowScripts.exe";
 
         public AddIn(TiaPortal tiaPortal) : base("ShowScriptCode") //Definiert den AddIn-Namen
         {
@@ -36,32 +37,28 @@ namespace ShowScripts
 #if DEBUG
             Debugger.Launch();
 #endif
-            string args = "export --silent";
-            args = StartApplication(menuSelectionProvider, args);
+            Work(menuSelectionProvider, false, false, true);
         }
         private void OnClickExportOverwriteSilent(MenuSelectionProvider<IEngineeringObject> menuSelectionProvider)
         {
 #if DEBUG
             Debugger.Launch();
 #endif
-            string args = "export --overwrite --silent";
-            args = StartApplication(menuSelectionProvider, args);
+            Work(menuSelectionProvider, false, true, true);
         }
         private void OnClickExport(MenuSelectionProvider<IEngineeringObject> menuSelectionProvider)
         {
 #if DEBUG
             Debugger.Launch();
 #endif
-            string args = "export";
-            args = StartApplication(menuSelectionProvider, args);
+            Work(menuSelectionProvider, false);
         }
         private void OnClickExportOverwrite(MenuSelectionProvider<IEngineeringObject> menuSelectionProvider)
         {
 #if DEBUG
             Debugger.Launch();
 #endif
-            string args = "export --overwrite";
-            args = StartApplication(menuSelectionProvider, args);
+            Work(menuSelectionProvider, false, true);
         }
 
         private void OnClickImport(MenuSelectionProvider<IEngineeringObject> menuSelectionProvider)
@@ -69,72 +66,147 @@ namespace ShowScripts
 #if DEBUG
             Debugger.Launch();
 #endif
-            string args = "import";
-            args = StartApplication(menuSelectionProvider, args);
+            Work(menuSelectionProvider, true);
         }
-        private string StartApplication(MenuSelectionProvider<IEngineeringObject> menuSelectionProvider, string args)
+        private void Work(MenuSelectionProvider<IEngineeringObject> menuSelectionProvider, bool isImport, bool overwrite = false, bool silent = false)
         {
-            string fileDirectory = _tiaPortal.Projects.FirstOrDefault()?.Path.DirectoryName + "\\UserFiles\\";
-            var currentProcess = _tiaPortal.GetCurrentProcess();
-            string exePath = WriteApplicationToTempFolder(exeName);
-            args += " -t \"";
-            List<string> deviceNames = new List<string>();
-            foreach (Device device in menuSelectionProvider.GetSelection<Device>())
+            var tiaPortalProject = _tiaPortal.Projects.FirstOrDefault();
+            using (var exclusiveAccess = _tiaPortal.ExclusiveAccess("ShowScripts Addin V19.22.0 starting..."))
             {
-                foreach (DeviceItem deviceItem in device.DeviceItems)
+                foreach (Device device in menuSelectionProvider.GetSelection<Device>())
                 {
-                    SoftwareContainer softwareContainer = deviceItem.GetService<SoftwareContainer>();
-                    if (softwareContainer != null && softwareContainer.Software is HmiSoftware) // HmiSoftware means Unified
+                    foreach (DeviceItem deviceItem in device.DeviceItems)
                     {
-                        deviceNames.Add(device.Name);
+                        SoftwareContainer softwareContainer = deviceItem.GetService<SoftwareContainer>();
+                        if (softwareContainer != null && softwareContainer.Software is HmiSoftware) // HmiSoftware means Unified
+                        {
+                            string deviceName = device.Name;
+                            var screens = GetScreens(tiaPortalProject, deviceName);
+                            if (screens == null)
+                            {
+                                MessageBox.Show(@"Cannot find any HMI with name: " + deviceName + @"
+                            If the device exists, but this error occurs, this is a known bug in TIA Portal. Workaround: Copy the HMI and connected PLC to a new created TIA Portal project and run the tool again.
+                            Click to close and continue...");
+                                continue;
+                            }
+
+                            string fileDirectory = tiaPortalProject.Path.DirectoryName + "\\UserFiles\\ShowScripts_" + deviceName + "\\";
+                            if (!Directory.Exists(fileDirectory))
+                            {
+                                Directory.CreateDirectory(fileDirectory);
+                            }
+                            // Console.WriteLine("ShowScripts path: " + fileDirectory);
+
+                            var worker = new AddScriptsToList(fileDirectory, exclusiveAccess, deviceName);
+                            if (!isImport)
+                            {
+                                worker.ExportScripts(screens, overwrite, silent, false);
+
+                                // run command to fix scripts with eslint rules
+                                var processStartInfo = new ProcessStartInfo();
+                                processStartInfo.WorkingDirectory = fileDirectory;
+                                processStartInfo.FileName = "cmd.exe";
+                                processStartInfo.Arguments = "/C npm run lint";
+                                Process proc = Process.Start(processStartInfo);
+                                proc.WaitForExit();
+                            }
+                            else
+                            {
+                                // import scripts
+                                using (var transaction = exclusiveAccess.Transaction(tiaPortalProject, "Import scripts"))
+                                {
+                                    worker.ImportScripts(screens);
+                                }
+                                // tiaPortalProject.Save();
+                            }
+                        }
                     }
                 }
             }
-            args += string.Join(",", deviceNames) + "\"";
-            args += " -P " + "\"" + currentProcess.Id + "\"";
-            args += " -A " + "\"" + currentProcess.Path.ToString() + "\"";
-
-            var process = Siemens.Engineering.AddIn.Utilities.Process.Start(exePath, args);
-
-            return args;
         }
-
-
-        private string WriteApplicationToTempFolder(string exeResource, string[] referenceResources = null)
+        private static IEnumerable<HmiScreen> GetScreens(Project tiaProject, string deviceName)
         {
-            string tempDirectory = GetTemporaryDirectory();
-
-            File.WriteAllBytes(Path.Combine(tempDirectory, GetFileNameFromResource(exeResource)), GetResourceStream(exeResource));
-
-            if (referenceResources != null)
+            var screens = GetScreens(tiaProject.Devices, deviceName);
+            if (screens == null)
             {
-                foreach (string resource in referenceResources)
+                screens = GetScreens(tiaProject.DeviceGroups, deviceName);
+            }
+            return screens;
+        }
+        private static IEnumerable<HmiScreen> GetScreens(DeviceUserGroupComposition groups, string deviceName)
+        {
+            foreach (var group in groups)
+            {
+                var screens = GetScreens(group.Devices, deviceName);
+                if (screens != null)
                 {
-                    File.WriteAllBytes(Path.Combine(tempDirectory, GetFileNameFromResource(resource)), GetResourceStream(resource));
+                    return screens;
+                }
+                screens = GetScreens(group.Groups, deviceName);
+                if (screens != null)
+                {
+                    return screens;
                 }
             }
-
-            return Path.Combine(tempDirectory, GetFileNameFromResource(exeResource));
-        }        
-        private byte[] GetResourceStream(string name)
-        {
-            BinaryReader streamReader = new BinaryReader(this.GetType().Assembly.GetManifestResourceStream(name));
-
-            return streamReader.ReadBytes((int)streamReader.BaseStream.Length);
+            return null;
         }
-        private string GetTemporaryDirectory()
-        {
-            string tempDirectory = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
-            Directory.CreateDirectory(tempDirectory);
-            return tempDirectory;
-        }
-        private string GetFileNameFromResource(string resourceName)
-        {
-            string resourceStart = "ShowScripts.OpennessExe.";
 
-            return resourceName.Substring(resourceStart.Length);
+        private static IEnumerable<HmiScreen> GetScreens(DeviceComposition devices, string deviceName)
+        {
+            IEnumerable<HmiScreen> screens = null;
+            if (string.IsNullOrEmpty(deviceName))
+            {
+                foreach (var device in devices)
+                {
+                    screens = GetScreens(device);
+                    if (screens != null)
+                    {
+                        deviceName = device.Name;
+                        return screens;
+                    }
+                }
+            }
+            else
+            {
+                var device = devices.FirstOrDefault(x => x.Name == deviceName);
+                if (device != null)
+                {
+                    return GetScreens(device);
+                }
+            }
+            return null;
         }
-        
+        private static IEnumerable<HmiScreen> GetScreens(Device device)
+        {
+            foreach (DeviceItem deviceItem in device.DeviceItems)
+            {
+                SoftwareContainer softwareContainer = deviceItem.GetService<SoftwareContainer>();
+                if (softwareContainer != null && softwareContainer.Software is HmiSoftware)
+                {
+                    var sw = (softwareContainer.Software as HmiSoftware);
+                    var allScreens = sw.Screens.ToList();
+                    allScreens.AddRange(ParseGroups(sw.ScreenGroups));
+                    return allScreens;
+                }
+            }
+            return null;
+        }
+
+        private static IEnumerable<HmiScreen> ParseGroups(HmiScreenGroupComposition parentGroups)
+        {
+            foreach (var group in parentGroups)
+            {
+                foreach (var screen in group.Screens)
+                {
+                    yield return screen;
+                }
+                foreach (var screen in ParseGroups(group.Groups))
+                {
+                    yield return screen;
+                }
+            }
+        }
+
         private MenuStatus DisplayStatus(MenuSelectionProvider<IEngineeringObject> menuSelectionProvider)
         {
             return MenuStatus.Enabled;

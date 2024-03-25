@@ -6,7 +6,7 @@
   <Product>
     <Name>TIA Add-In ShowScripts - Debug version</Name>
     <Id>tia_add_in_show_scripts</Id>
-    <Version>19.20.0</Version>
+    <Version>19.22.0</Version>
   </Product>
   <DisplayInMultiuser />
 
@@ -15,34 +15,15 @@
       <Assembly>bin\Debug\ShowScripts.dll</Assembly>
     </AssemblyInfo>
   </FeatureAssembly>
-
+  
   <RequiredPermissions>
     <TIAPermissions>
       <TIA.ReadWrite/>
     </TIAPermissions>
-    <SecurityPermissions>
-      <System.Security.Permissions.SecurityPermission.UnmanagedCode/>
-      <Siemens.Engineering.AddIn.Permissions.ProcessStartPermission/>
-      <System.Net.WebPermission/>
-      <System.Security.Permissions.MediaPermission/>
-      <System.Security.Permissions.KeyContainerPermission/>
-      <System.Security.Permissions.WebBrowserPermission/>
-      <System.Net.SocketPermission/>
-      <System.Data.Odbc.OdbcPermission/>
-      <System.Net.NetworkInformation.NetworkInformationPermission/>
-      <System.Security.Permissions.StorePermission/>
-      <System.Configuration.ConfigurationPermission/>
-      <System.Security.Permissions.FileIOPermission/>
-      <System.Diagnostics.EventLogPermission/>
-      <System.Drawing.Printing.PrintingPermission/>
-      <System.Security.Permissions.IsolatedStorageFilePermission/>
-      <System.Data.OleDb.OleDbPermission/>
-      <System.Security.Permissions.RegistryPermission/>
-      <System.Data.SqlClient.SqlClientPermission/>
-      <System.Security.Permissions.EnvironmentPermission/>
-      <System.Net.Mail.SmtpPermission/>
-      <System.Security.Permissions.FileDialogPermission/>
-      <System.Security.Permissions.UIPermission/>
-    </SecurityPermissions>
+    <UnrestrictedPermissions>
+      <System.UnrestrictedAccess>
+        <JustificationComment>Needed to speed up application.</JustificationComment>
+      </System.UnrestrictedAccess>
+    </UnrestrictedPermissions>
   </RequiredPermissions>
 </PackageConfiguration>
