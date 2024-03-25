@@ -31,9 +31,43 @@ namespace ShowScripts
         string globalDefinitionAreaScriptCodeEvents;
         List<string> childScreens;
         int check = 0;
-        string delimiter = ";";
+        private readonly string delimiter = ";";
+        private readonly ExclusiveAccess exclusiveAccess;
+        private readonly string fileDirectory;
+        private readonly string logDirectory;
+        private readonly LinkedList<string> rollingLog = new LinkedList<string>();
+        private readonly int MAX_ROLLING_LOG_LINES = 10;
+        private readonly string deviceName;
 
-        public void ImportScripts(IEnumerable<HmiScreen> screens, string fileDirectory)
+        public AddScriptsToList(string fileDirectory, ExclusiveAccess exclusiveAccess, string deviceName)
+        {
+            this.fileDirectory = fileDirectory;
+            this.logDirectory = fileDirectory + "Log.txt";
+            this.exclusiveAccess = exclusiveAccess;
+            this.deviceName = deviceName;
+            Log(DateTime.Now.ToString() + "   " + deviceName);
+        }
+
+        private void Log(string text, bool noNewLine = false)
+        {
+            if (!noNewLine)
+            {
+                rollingLog.AddLast(text);
+                if (rollingLog.Count > MAX_ROLLING_LOG_LINES)
+                {
+                    rollingLog.RemoveFirst();
+                }
+                text += "\n";
+            } 
+            else
+            {
+                rollingLog.Last.Value += text;
+            }
+            File.AppendAllText(logDirectory, text);
+            this.exclusiveAccess.Text = string.Join("\n", rollingLog);
+        }
+
+        public void ImportScripts(IEnumerable<HmiScreen> screens)
         {
             FileInfo[] Files = new DirectoryInfo(fileDirectory).GetFiles("*.js");
             foreach (HmiScreen screen in screens)
@@ -121,7 +155,7 @@ namespace ShowScripts
             }
             if (scriptLines.Count == 0)
             {
-                Console.WriteLine("Cannot find function with name " + functionName + " in script file.");
+                Log("Cannot find function with name " + functionName + " in script file.");
                 return;
             }
             int lastBracketIndex = scriptLines.FindLastIndex(x => x.Trim() == "}");
@@ -133,7 +167,7 @@ namespace ShowScripts
             }
             else
             {
-                Console.WriteLine($"Did not change funtion {functionName}, because the script code is equal");
+                Log($"Did not change funtion {functionName}, because the script code is equal");
             }
         }
 
@@ -147,7 +181,7 @@ namespace ShowScripts
         /// <param name="screenName">Case ignored, e.g. *, Screen_*</param>
         /// <param name="whereCondition">e.g. Dynamization.Trigger.Type=250</param>
         /// <param name="sets">e.g. Dynamization.Trigger.Type=4, Dynamization.Trigger.Tags='Refresh_tag'</param>
-        public void ExportScripts(IEnumerable<HmiScreen> screens, string fileDirectory, string deviceName, bool overwrite, bool silent, bool deepSearch = false, bool versionLeadsToTextCrash = false)
+        public void ExportScripts(IEnumerable<HmiScreen> screens, bool overwrite, bool silent, bool deepSearch = false, bool versionLeadsToTextCrash = false)
         {
             string whereCondition = "";
             string sets = "";
@@ -275,8 +309,8 @@ namespace ShowScripts
                 var eveList = new List<string>();
                 var screenDynEventList = new List<ScreenDynEvents>();
                 // inits
-                Console.WriteLine();
-                Console.Write("[" + (i + 1) + "/" + screenCount + "]" + screen.Name);
+                Log("");
+                Log("[" + (i + 1) + "/" + screenCount + "]" + screen.Name, true);
                 tagNames = new List<string>();
                 List<string> _dynamizationList = new List<string>(); 
                 List<string> _eveList = new List<string>();
@@ -328,7 +362,7 @@ namespace ShowScripts
 
                 foreach (var screenitem in screen.ScreenItems)
                 {
-                    Console.Write('.');  // the user wants to see that something happens, so a dot will be printed for every screenitem
+                    Log(".", true);  // the user wants to see that something happens, so a dot will be printed for every screenitem
                     var screenitemDynsPropEves = GetAllMyAttributesDynPropEves(screenitem, deepSearch, whereCondition.Split(',').ToList(), sets.Split(',').ToList(), tagSetUsages, ref cycles);
                     var screenitemDyns = screenitemDynsPropEves[0];
                     var screenitemPropEves = screenitemDynsPropEves[1];
@@ -358,7 +392,7 @@ namespace ShowScripts
                     }
                     else
                     {
-                        Console.WriteLine("Screenitem Type: " + screenitem.GetType().Name + " is unknown.");
+                        Log("Screenitem Type: " + screenitem.GetType().Name + " is unknown.");
                     }
                     if (!(screenitem is Siemens.Engineering.HmiUnified.UI.Shapes.HmiCentricShapeBase))
                     {
@@ -538,8 +572,8 @@ namespace ShowScripts
             catch (Exception ex)
             {
                 rtName = "Dummy_HMI_RT";
-                Console.WriteLine("Failed to define the runtime name correctly, so use " + rtName + "Exception:");
-                Console.WriteLine(ex);
+                Log("Failed to define the runtime name correctly, so use " + rtName + "Exception:");
+                Log(ex.Message);
             }
 
             using (StreamWriter sw = new StreamWriter(fileDirectory + rtName + "_Scripts_Overview.csv"))
@@ -568,7 +602,7 @@ namespace ShowScripts
             {
                 if (itemsDyn.Value.Count == 2 && (obj is HmiScreen || obj is HmiScreenItemBase))
                 {
-                    Console.Write(';');  // the user wants to see that something happens, so a semicolon will be printed for every script
+                    Log(";", true);  // the user wants to see that something happens, so a semicolon will be printed for every script
                     tempListDyn.Insert(0, itemsDyn.Value[0]);
                     string script = itemsDyn.Value[1];
                     SetTagSetUsage(script, objectName + delimiter + itemsDyn.Key, tagSetUsage);
@@ -577,7 +611,7 @@ namespace ShowScripts
 
                 if (itemsDyn.Value.Count == 1 && (obj is HmiScreen || obj is HmiScreenItemBase))
                 {
-                    Console.Write(';');  // the user wants to see that something happens, so a semicolon will be printed for every script
+                    Log(";", true);  // the user wants to see that something happens, so a semicolon will be printed for every script
                     tempListDyn.Add(Environment.NewLine + "//eslint-disable-next-line camelcase");
                     string script = itemsDyn.Value[0];
                     SetTagSetUsage(script, objectName + delimiter + itemsDyn.Key, tagSetUsage);
@@ -586,7 +620,7 @@ namespace ShowScripts
 
                 if (itemsDyn.Value.Count == 1 && !(obj is HmiScreen || obj is HmiScreenItemBase))
                 {
-                    Console.Write(';');  // the user wants to see that something happens, so a semicolon will be printed for every script
+                    Log(";", true);  // the user wants to see that something happens, so a semicolon will be printed for every script
                     tempListDyn.Add(Environment.NewLine + "//eslint-disable-next-line camelcase");
                     string script = itemsDyn.Value[0];
                     SetTagSetUsage(script, itemsDyn.Key, tagSetUsage);
@@ -596,7 +630,7 @@ namespace ShowScripts
 
             foreach (var itemsPropEve in propertyEvents)
             {
-                Console.Write(';');  // the user wants to see that something happens, so a semicolon will be printed for every script
+                Log(";", true);  // the user wants to see that something happens, so a semicolon will be printed for every script
                 if (itemsPropEve.Value.Count == 2 && (obj is HmiScreen || obj is HmiScreenItemBase))
                 {
                     tempListPropEve.Insert(0, itemsPropEve.Value[0]);
@@ -645,7 +679,7 @@ namespace ShowScripts
                         var nodeDynPropEve = GetAllMyAttributesDynPropEves(item, deepSearch, whereConditions, sets, tagSetUsage, ref cycles);
                         foreach (var dyn in nodeDynPropEve[0])
                         {
-                            Console.Write(';');  // the user wants to see that something happens, so a semicolon will be printed for every script
+                            Log(";", true);  // the user wants to see that something happens, so a semicolon will be printed for every script
                             tempListDyn.Add("function _" + objectName + dyn);
                         }
                         int index = 0;
@@ -653,7 +687,7 @@ namespace ShowScripts
                         {
                             if (index != 0)
                             {
-                                Console.Write(';');  // the user wants to see that something happens, so a semicolon will be printed for every script
+                                Log(";", true);  // the user wants to see that something happens, so a semicolon will be printed for every script
                                 tempListPropEve.Add(Environment.NewLine + "export function _" + obj.GetAttribute("Name") + propEve);
                             }
                             else
@@ -699,7 +733,7 @@ namespace ShowScripts
             {
                 if (itemsEve.Value.Count == 2)
                 {
-                    Console.Write(';');  // the user wants to see that something happens, so a semicolon will be printed for every script
+                    Log(";", true);  // the user wants to see that something happens, so a semicolon will be printed for every script
                     //tempListEve.Add(Environment.NewLine + "//eslint-disable-next-line camelcase");
                     tempListEve.Insert(0, itemsEve.Value[0]);
                     string script = itemsEve.Value[1];
@@ -709,7 +743,7 @@ namespace ShowScripts
 
                 if (itemsEve.Value.Count == 1)
                 {
-                    Console.Write(';');  // the user wants to see that something happens, so a semicolon will be printed for every script
+                    Log(";", true);  // the user wants to see that something happens, so a semicolon will be printed for every script
                     tempListEve.Add(Environment.NewLine + "//eslint-disable-next-line camelcase");
                     string script = itemsEve.Value[0];
                     SetTagSetUsage(script, objectName + delimiter + itemsEve.Key, tagSetUsage);
@@ -744,7 +778,7 @@ namespace ShowScripts
 
                 if (obj == null)
                 {
-                    Console.WriteLine("Language " + keyToSet + " does not exist in this Runtime!");
+                    Log("Language " + keyToSet + " does not exist in this Runtime!");
                     return;
                 }
                 keyToSet = "Text";
@@ -763,7 +797,7 @@ namespace ShowScripts
             {
                 obj.SetAttribute(keyToSet.ToString(), attrVal);
             }
-            catch (Exception ex) { Console.WriteLine(ex.Message); }
+            catch (Exception ex) { Log(ex.Message); }
         }
 
         private Dictionary<string, List<string>> GetScripts(IEngineeringObject obj, string compositionName, List<string> whereConditions, List<string> sets, ref List<string> cycles)
@@ -909,14 +943,14 @@ namespace ShowScripts
                         }
                         else
                         {
-                            Console.WriteLine("Unknown dynamization type: " + dyn.DynamizationType.ToString());
+                            Log("Unknown dynamization type: " + dyn.DynamizationType.ToString());
                         }
                         dict.Add(dyn.PropertyName, listDyn);
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex.Message);
+                    Log(ex.Message);
                 }
             }
             else // e.g. EventHandlers & PropertyEventHandlers

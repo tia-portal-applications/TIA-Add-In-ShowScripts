@@ -11,6 +11,7 @@ using Siemens.Engineering.HmiUnified.UI.ScreenGroup;
 using System.Diagnostics;
 using System;
 using System.Windows.Forms;
+using System.Threading;
 
 namespace ShowScripts
 {
@@ -37,28 +38,28 @@ namespace ShowScripts
 #if DEBUG
             Debugger.Launch();
 #endif
-            StartApplication(menuSelectionProvider, false, false, true);
+            Work(menuSelectionProvider, false, false, true);
         }
         private void OnClickExportOverwriteSilent(MenuSelectionProvider<IEngineeringObject> menuSelectionProvider)
         {
 #if DEBUG
             Debugger.Launch();
 #endif
-            StartApplication(menuSelectionProvider, false, true, true);
+            Work(menuSelectionProvider, false, true, true);
         }
         private void OnClickExport(MenuSelectionProvider<IEngineeringObject> menuSelectionProvider)
         {
 #if DEBUG
             Debugger.Launch();
 #endif
-            StartApplication(menuSelectionProvider, false);
+            Work(menuSelectionProvider, false);
         }
         private void OnClickExportOverwrite(MenuSelectionProvider<IEngineeringObject> menuSelectionProvider)
         {
 #if DEBUG
             Debugger.Launch();
 #endif
-            StartApplication(menuSelectionProvider, false, true);
+            Work(menuSelectionProvider, false, true);
         }
 
         private void OnClickImport(MenuSelectionProvider<IEngineeringObject> menuSelectionProvider)
@@ -66,53 +67,60 @@ namespace ShowScripts
 #if DEBUG
             Debugger.Launch();
 #endif
-            StartApplication(menuSelectionProvider, true);
+            Work(menuSelectionProvider, true);
         }
-        private void StartApplication(MenuSelectionProvider<IEngineeringObject> menuSelectionProvider, bool isImport, bool overwrite = false, bool silent = false)
+        private void Work(MenuSelectionProvider<IEngineeringObject> menuSelectionProvider, bool isImport, bool overwrite = false, bool silent = false)
         {
             var tiaPortalProject = _tiaPortal.Projects.FirstOrDefault();
-            foreach (Device device in menuSelectionProvider.GetSelection<Device>())
+            using (var exclusiveAccess = _tiaPortal.ExclusiveAccess("ShowScripts Addin V19.22.0 starting..."))
             {
-                foreach (DeviceItem deviceItem in device.DeviceItems)
+                foreach (Device device in menuSelectionProvider.GetSelection<Device>())
                 {
-                    SoftwareContainer softwareContainer = deviceItem.GetService<SoftwareContainer>();
-                    if (softwareContainer != null && softwareContainer.Software is HmiSoftware) // HmiSoftware means Unified
+                    foreach (DeviceItem deviceItem in device.DeviceItems)
                     {
-                        string deviceName = device.Name;
-                        var screens = GetScreens(tiaPortalProject, deviceName);
-                        if (screens == null)
+                        SoftwareContainer softwareContainer = deviceItem.GetService<SoftwareContainer>();
+                        if (softwareContainer != null && softwareContainer.Software is HmiSoftware) // HmiSoftware means Unified
                         {
-                            MessageBox.Show(@"Cannot find any HMI with name: " + deviceName + @"
+                            string deviceName = device.Name;
+                            var screens = GetScreens(tiaPortalProject, deviceName);
+                            if (screens == null)
+                            {
+                                MessageBox.Show(@"Cannot find any HMI with name: " + deviceName + @"
                             If the device exists, but this error occurs, this is a known bug in TIA Portal. Workaround: Copy the HMI and connected PLC to a new created TIA Portal project and run the tool again.
                             Click to close and continue...");
-                            continue;
-                        }
+                                continue;
+                            }
 
-                        string fileDirectory = tiaPortalProject.Path.DirectoryName + "\\UserFiles\\ShowScripts_" + deviceName + "\\";
-                        if (!Directory.Exists(fileDirectory))
-                        {
-                            Directory.CreateDirectory(fileDirectory);
-                        }
-                        Console.WriteLine("ShowScripts path: " + fileDirectory);
+                            string fileDirectory = tiaPortalProject.Path.DirectoryName + "\\UserFiles\\ShowScripts_" + deviceName + "\\";
+                            if (!Directory.Exists(fileDirectory))
+                            {
+                                Directory.CreateDirectory(fileDirectory);
+                            }
+                            // Console.WriteLine("ShowScripts path: " + fileDirectory);
 
-                        var worker = new AddScriptsToList();
-                        if (!isImport)
-                        {
-                            worker.ExportScripts(screens, fileDirectory, deviceName, overwrite, silent, false);
+                            var worker = new AddScriptsToList(fileDirectory, exclusiveAccess, deviceName);
+                            Thread.Sleep(2000); // give the user time to see what is happening. This short sleep does not harm
+                            if (!isImport)
+                            {
+                                worker.ExportScripts(screens, overwrite, silent, false);
 
-                            // run command to fix scripts with eslint rules
-                            var processStartInfo = new ProcessStartInfo();
-                            processStartInfo.WorkingDirectory = fileDirectory;
-                            processStartInfo.FileName = "cmd.exe";
-                            processStartInfo.Arguments = "/C npm run lint";
-                            Process proc = Process.Start(processStartInfo);
-                            proc.WaitForExit();
-                        }
-                        else
-                        {
-                            // import scripts
-                            worker.ImportScripts(screens, fileDirectory);
-                            // tiaPortalProject.Save();
+                                // run command to fix scripts with eslint rules
+                                var processStartInfo = new ProcessStartInfo();
+                                processStartInfo.WorkingDirectory = fileDirectory;
+                                processStartInfo.FileName = "cmd.exe";
+                                processStartInfo.Arguments = "/C npm run lint";
+                                Process proc = Process.Start(processStartInfo);
+                                proc.WaitForExit();
+                            }
+                            else
+                            {
+                                // import scripts
+                                using (var transaction = exclusiveAccess.Transaction(tiaPortalProject, "Import scripts"))
+                                {
+                                    worker.ImportScripts(screens);
+                                }
+                                // tiaPortalProject.Save();
+                            }
                         }
                     }
                 }
