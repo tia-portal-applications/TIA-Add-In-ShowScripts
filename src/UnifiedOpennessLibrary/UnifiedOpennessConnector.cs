@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Windows;
 using Siemens.Engineering.HmiUnified.UI.ScreenGroup;
 using Siemens.Engineering.HmiUnified.UI.Screens;
 
@@ -56,11 +55,15 @@ namespace UnifiedOpennessLibrary
         public string DeviceName { get; private set; }
         public HmiSoftware UnifiedSoftware { get; private set; }
         public IEnumerable<HmiScreen> Screens { get; private set; }
+        /// <summary>
+        /// will be generated in the constructor by the currently running TIA Portal process version
+        /// </summary>
+        private static string opennessDll;
 
         /// <summary>
         /// If your tool changes anything on the TIA Portal project, please use transactions!
         /// </summary>
-        /// <param name="tiaPortalVersion">e.g. V18 or V19. It must be the part of the path in the installation folder</param>
+        /// <param name="tiaPortalVersion">e.g. V18 or V19. It must be the part of the path in the installation folder and is the version that has been tested by you with your program</param>
         /// <param name="args">just pass the arguments that you got from the command line here. You may have access via the public member "CmdArgs" to your arguments afterwards</param>
         /// <param name="toolName">define the name of the tool (exe), so help text and the waiting text is more beautiful</param>
         /// <param name="additionalParameters"> The following parameters are already there, so be careful with the short option of new parameters
@@ -75,6 +78,15 @@ namespace UnifiedOpennessLibrary
         {
             TiaPortalVersion = tiaPortalVersion;
             ParseArguments(args.ToList(), toolName, additionalParameters);
+            var tiaProcesses = System.Diagnostics.Process.GetProcessesByName("Siemens.Automation.Portal");
+            if (tiaProcesses.Length == 0)
+            {
+                throw new Exception("No TIA Portal instance is running. Please start TIA Portal and open a project with a WinCC Unified device and run this app again!");
+            }
+            string processPath = tiaProcesses[0].MainModule.FileName;
+            string tiaPortalDirectory = Path.GetDirectoryName(processPath);
+            // 0. Load TIA Openness DLL dynamically, so it works also in all further versions
+            opennessDll = tiaPortalDirectory + "\\..\\PublicAPI\\" + TiaPortalVersion + "\\Siemens.Engineering.dll";
             AppDomain.CurrentDomain.AssemblyResolve += AssemblyResolver;
             Work(toolName);
         }
@@ -205,69 +217,13 @@ namespace UnifiedOpennessLibrary
 
         public Assembly AssemblyResolver(object sender, ResolveEventArgs args)
         {
-            int index = args.Name.IndexOf(',');
-            string dllPathToTry = string.Empty;
-            string directory = string.Empty;
-            if (index != -1)
+            int index = args.Name.IndexOf("Siemens.Engineering,");
+
+            if (index != -1 || args.Name == "Siemens.Engineering")
             {
-                string name = args.Name.Substring(0, index);
-                string path = @"C:\Program Files\Siemens\Automation\Portal " + TiaPortalVersion + @"\bin\Siemens.Automation.Portal.exe";
-                if (path != null & path != string.Empty)
-                {
-                    if (name == "Siemens.Engineering")
-                    {
-                        try
-                        {
-                            FileInfo exeFileInfo = new FileInfo(path);
-                            dllPathToTry = exeFileInfo.Directory + @"\..\PublicAPI\" + TiaPortalVersion + @"\Siemens.Engineering.dll";
-                        }
-                        catch (NullReferenceException e)
-                        {
-                            MessageBox.Show("Tool cannot start due to an inconsistent TIA installation. Please contact support.",
-                                "Error",
-                                MessageBoxButton.OK,
-                                MessageBoxImage.Error);
-                            Environment.Exit(1);
-                        }
-                    }
-                    else if (name == "Siemens.Engineering.Hmi")
-                    {
-                        try
-                        {
-                            FileInfo exeFileInfo = new FileInfo(path);
-                            dllPathToTry = exeFileInfo.Directory + @"\..\PublicAPI\" + TiaPortalVersion + @"\Siemens.Engineering.Hmi.dll";
-                        }
-                        catch (NullReferenceException e)
-                        {
-                            MessageBox.Show("Tool cannot start due to an inconsistent TIA installation. Please contact support.",
-                                "Error",
-                                MessageBoxButton.OK,
-                                MessageBoxImage.Error);
-                            Environment.Exit(1);
-                        }
-                    }
-                }
-
-
-
-                if (dllPathToTry != string.Empty)
-                {
-                    string assemblyPath = Path.GetFullPath(dllPathToTry);
-
-                    if (File.Exists(assemblyPath))
-                    {
-                        return Assembly.LoadFrom(assemblyPath);
-                    }
-                    else
-                    {
-                        MessageBox.Show("Tool cannot start due to an inconsistent TIA installation. Please contact support.",
-                            "Error",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Error);
-                        Environment.Exit(1);
-                    }
-                }
+                return Assembly.LoadFrom(opennessDll);
             }
+
             return null;
         }
         /// <summary>
