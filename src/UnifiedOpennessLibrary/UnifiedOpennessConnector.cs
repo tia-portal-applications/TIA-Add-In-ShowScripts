@@ -140,7 +140,8 @@ namespace UnifiedOpennessLibrary
         private void SetHmiByDeviceName()
         {
             var hmiSoftwares = GetHmiSoftwares();
-            UnifiedSoftware = hmiSoftwares.FirstOrDefault(x => (x.Parent as SoftwareContainer).OwnedBy.Container.Name == DeviceName);
+            UnifiedSoftware = hmiSoftwares.FirstOrDefault(x => (x.Parent as SoftwareContainer).OwnedBy.Container.TypeIdentifier.Contains("Rack.PC") ?
+                x.Name == DeviceName : (x.Parent as SoftwareContainer).OwnedBy.Container.Name == DeviceName);
             if (UnifiedSoftware == null)
             {
                 throw new Exception("Device with name " + DeviceName + " cannot be found. Please check, if the search is working in TIA Portal and install missing GSD files if not. Then run this tool again.");
