@@ -1,0 +1,29 @@
+﻿<PackageConfiguration xmlns="http://www.siemens.com/automation/Openness/AddIn/Publisher/V20">
+  <Author>Siemens AG</Author>
+  <AddInVersion>V20</AddInVersion>
+  <Description>This is a TIA Add-In to show all scripts in HmiScreen for TIA Portal V20</Description>
+
+  <Product>
+    <Name>TIA Add-In ShowScripts - Debug version</Name>
+    <Id>tia_add_in_show_scripts</Id>
+    <Version>20.24.0</Version>
+  </Product>
+  <DisplayInMultiuser />
+
+  <FeatureAssembly>
+    <AssemblyInfo>
+      <Assembly>bin\Debug\ShowScripts.dll</Assembly>
+    </AssemblyInfo>
+  </FeatureAssembly>
+  
+  <RequiredPermissions>
+    <TIAPermissions>
+      <TIA.ReadWrite/>
+    </TIAPermissions>
+    <UnrestrictedPermissions>
+      <System.UnrestrictedAccess>
+        <JustificationComment>Needed to speed up application.</JustificationComment>
+      </System.UnrestrictedAccess>
+    </UnrestrictedPermissions>
+  </RequiredPermissions>
+</PackageConfiguration>
